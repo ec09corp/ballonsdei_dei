@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" width="300" height="80">
+  <defs>
+    <linearGradient id="roseGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8D5844" />
+      <stop offset="100%" stop-color="#C59B85" />
+    </linearGradient>
+  </defs>
+  <!-- Background transparent -->
+  <rect width="300" height="80" fill="none"/>
+  <!-- Decorative Floral / Balloon Sparkle Motif -->
+  <circle cx="36" cy="38" r="14" fill="url(#roseGold)" opacity="0.15" />
+  <circle cx="44" cy="30" r="10" fill="url(#roseGold)" opacity="0.25" />
+  <path d="M 38 24 C 38 18, 46 18, 46 24 C 46 30, 38 34, 38 34 C 38 34, 30 30, 30 24 C 30 18, 38 18, 38 24 Z" fill="url(#roseGold)" />
+  <!-- Brand Name Text -->
+  <text x="70" y="44" font-family="'Cormorant Garamond', 'Playfair Display', Georgia, serif" font-size="28" font-weight="600" letter-spacing="5" fill="#2E2421">BALLONSDEI</text>
+  <text x="72" y="58" font-family="'Plus Jakarta Sans', sans-serif" font-size="7.5" font-weight="400" letter-spacing="3.5" fill="#9A7D70">ATELIER FLORAL &amp; EVENTOS</text>
+</svg>

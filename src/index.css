@@ -1,0 +1,327 @@
+@import "tailwindcss";
+
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  
+  /* Emil Kowalski Signature Animation Curves & Durations (Exponential Deceleration) */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring-snappy: cubic-bezier(0.2, 1, 0.3, 1);
+  --ease-spring-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-luxury: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+body {
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  background-color: #FAF8F5;
+  color: #241A23;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+/* ==========================================================================
+   Rolex-Grade Luxury & Parallax Styling
+   ========================================================================== */
+
+/* Solid Luxury Gold Accent */
+.text-gold {
+  color: #C5A059;
+}
+
+/* Subtle Gold Hairline Borders */
+.border-gold-subtle {
+  border-color: rgba(197, 160, 89, 0.28);
+}
+
+.border-gold-glow {
+  box-shadow: 0 0 15px rgba(197, 160, 89, 0.15), inset 0 0 15px rgba(197, 160, 89, 0.05);
+}
+
+/* Luxury Glassmorphism */
+.glass-luxury {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 214, 204, 0.6);
+}
+
+.glass-luxury-dark {
+  background: rgba(36, 18, 43, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(197, 160, 89, 0.25);
+}
+
+/* Infinite Smooth Silk Marquee */
+@keyframes luxury-marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-luxury-marquee {
+  display: flex;
+  width: 200%;
+  animation: luxury-marquee 38s linear infinite;
+  will-change: transform;
+}
+.animate-luxury-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Scroll reveal helper */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 700ms var(--ease-out), transform 700ms var(--ease-out);
+}
+.reveal-on-scroll.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ==========================================================================
+   Emil Kowalski Signature Button Press & Motion Physics
+   ========================================================================== */
+
+/* Universal button tap highlight reset */
+button, [role="button"], a[class*="rounded"] {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Universal Accessible Focus Ring (WCAG AA Compliant) */
+:focus-visible {
+  outline: 2px solid #763D8B !important;
+  outline-offset: 2px !important;
+}
+
+/* Default button tactile physics:
+   Instant sink on click/tap (75ms), spring rebound on release (160ms var(--ease-out)) */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+.btn-tactile {
+  transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out), opacity 160ms var(--ease-out);
+}
+
+/* Emil Kowalski active press: physical feedback that the UI registered the action */
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active,
+.btn-tactile:active {
+  transform: scale(0.97) !important;
+  transition-duration: 75ms !important;
+}
+
+/* Hover elevation gated strictly to fine pointer devices (prevents stuck hover on mobile) */
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):not(.no-lift):hover,
+  [role="button"]:not([aria-disabled="true"]):not(.no-lift):hover {
+    transform: translateY(-1.5px);
+  }
+}
+
+/* Icon Buttons (Close, Search, Cart, Heart, Zoom) - deeper compression on press */
+.btn-icon-tactile {
+  transition: transform 140ms var(--ease-out), background-color 140ms ease, color 140ms ease;
+  will-change: transform;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-icon-tactile:hover {
+    transform: scale(1.06);
+  }
+}
+.btn-icon-tactile:active {
+  transform: scale(0.91) !important;
+  transition-duration: 70ms !important;
+}
+
+/* CTA Highlight Buttons (Personalizar Arreglo, Confirmar Pedido, Añadir al Carrito) */
+.btn-cta-emil {
+  position: relative;
+  overflow: hidden;
+  transition: transform 200ms var(--ease-spring), box-shadow 200ms var(--ease-spring), background-color 180ms var(--ease-out);
+  will-change: transform, box-shadow;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-cta-emil:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -4px rgba(118, 61, 139, 0.4);
+  }
+}
+.btn-cta-emil:active {
+  transform: scale(0.97) translateY(0) !important;
+  transition-duration: 75ms !important;
+  box-shadow: 0 2px 6px -1px rgba(118, 61, 139, 0.3) !important;
+}
+
+/* Emil Kowalski Card Tactile Physics */
+.card-tactile-emil {
+  transition: transform 220ms var(--ease-spring-smooth), box-shadow 220ms var(--ease-spring-smooth), border-color 180ms var(--ease-out);
+  will-change: transform;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-tactile-emil:hover {
+    transform: translateY(-3px);
+  }
+}
+
+/* Option tactile spring button (Customizer selections) */
+.option-spring-emil,
+.customizer-spring-tile {
+  transition: transform 180ms var(--ease-spring), border-color 160ms var(--ease-out), background-color 160ms var(--ease-out), box-shadow 180ms var(--ease-spring);
+  will-change: transform, box-shadow;
+}
+@media (hover: hover) and (pointer: fine) {
+  .option-spring-emil:hover,
+  .customizer-spring-tile:hover {
+    transform: translateY(-2px);
+  }
+}
+.option-spring-emil:active,
+.customizer-spring-tile:active {
+  transform: scale(0.95) translateY(0) !important;
+  transition-duration: 75ms !important;
+}
+
+/* Dedicated spring button for product actions and modifier triggers */
+.btn-spring-action {
+  transition: transform 180ms var(--ease-spring), background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), box-shadow 180ms var(--ease-spring), color 160ms var(--ease-out);
+  will-change: transform;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-spring-action:hover {
+    transform: translateY(-1.5px);
+  }
+}
+.btn-spring-action:active {
+  transform: scale(0.94) translateY(0) !important;
+  transition-duration: 70ms !important;
+}
+
+/* Spring chips for quick presets, tags, and swatches */
+.chip-spring {
+  transition: transform 170ms var(--ease-spring), background-color 150ms var(--ease-out), border-color 150ms var(--ease-out), color 150ms var(--ease-out), box-shadow 170ms var(--ease-spring);
+  will-change: transform;
+}
+@media (hover: hover) and (pointer: fine) {
+  .chip-spring:hover {
+    transform: translateY(-1px) scale(1.03);
+  }
+}
+.chip-spring:active {
+  transform: scale(0.93) translateY(0) !important;
+  transition-duration: 70ms !important;
+}
+
+/* Subtle Shimmer Sheen on CTA Hover */
+.btn-cta-emil::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 50%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 80%
+  );
+  transform: rotate(25deg);
+  transition: transform 650ms var(--ease-out);
+  pointer-events: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-cta-emil:hover::after {
+    transform: translateX(360%) rotate(25deg);
+  }
+}
+
+/* Category Chips / Color Swatches / Element Tiles */
+.chip-tactile {
+  transition: transform 150ms var(--ease-out), border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+  will-change: transform;
+}
+@media (hover: hover) and (pointer: fine) {
+  .chip-tactile:hover {
+    transform: translateY(-1px) scale(1.02);
+  }
+}
+.chip-tactile:active {
+  transform: scale(0.95) !important;
+  transition-duration: 70ms !important;
+}
+
+/* Modal and Drawer Animations following Emil Kowalski's rules */
+@keyframes modal-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes drawer-slide-right {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-modal-enter {
+  animation: modal-enter 220ms var(--ease-out) forwards;
+}
+
+.animate-drawer-slide {
+  animation: drawer-slide-right 280ms var(--ease-drawer) forwards;
+}
+
+/* Reduced Motion Override (A11y rule) */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF8F5;
+}
+::-webkit-scrollbar-thumb {
+  background: #D9CEC7;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #BFAEA4;
+}
+

@@ -1,0 +1,6 @@
+{
+  "name": "Ballonsdei – Arreglos Florales, Globos & Alquiler de Eventos",
+  "description": "Boutique exclusiva de arreglos florales, globos de lujo, regalos personalizados y alquiler de mobiliario para eventos en Ballonsdei.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
