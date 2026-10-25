@@ -1,7 +1,7 @@
 import { OrderExtraItem, AVAILABLE_EXTRAS } from '../data/colonDelivery';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
-const LOCAL_EXTRAS_KEY = 'ballonsdei_custom_extras_v1';
+const LOCAL_EXTRAS_KEY = 'balloonsdei_custom_extras_v3';
 
 export const extrasService = {
   getExtras(): OrderExtraItem[] {
@@ -9,14 +9,14 @@ export const extrasService = {
       const raw = localStorage.getItem(LOCAL_EXTRAS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
     } catch (e) {
       console.warn('Error reading local extras:', e);
     }
-    return AVAILABLE_EXTRAS;
+    return [];
   },
 
   saveExtras(extras: OrderExtraItem[]) {

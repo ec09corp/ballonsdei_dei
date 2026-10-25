@@ -69,7 +69,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   return (
     <div className="min-h-screen bg-[#F7F3EF] flex flex-col lg:flex-row text-[#2E2421]">
       {/* Mobile/Tablet Header Bar */}
-      <div className="lg:hidden bg-[#2A211E] text-white px-4 py-3 flex items-center justify-between border-b border-[#3E322D] sticky top-0 z-30 shadow-md">
+      <div 
+        className="lg:hidden bg-[#2A211E] text-white px-4 py-3 flex items-center justify-between border-b border-[#3E322D] sticky top-0 z-30 shadow-md"
+        style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))' }}
+      >
         <div className="flex items-center gap-2">
           <button
             onClick={() => setMobileSidebarOpen(true)}
@@ -113,6 +116,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#231B18] text-[#D5C7C0] flex flex-col justify-between transition-transform duration-300 lg:translate-x-0 ${
           mobileSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
         }`}
+        style={{
+          paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0px))',
+          paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))',
+        }}
       >
         <div>
           {/* Brand header in sidebar */}

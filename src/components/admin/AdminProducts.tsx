@@ -16,12 +16,30 @@ import {
   FolderOpen,
   Copy,
   ShieldAlert,
-  RefreshCw
+  RefreshCw,
+  Zap,
+  CalendarDays,
+  Clock,
+  Database,
+  Code2
 } from 'lucide-react';
-import { Product, Category, GiftType, ProductType } from '../../types/database';
+import { 
+  Product, 
+  Category, 
+  GiftType, 
+  ProductType, 
+  AvailabilityType, 
+  ProductVariant,
+  getProductVariants,
+  getProductPriceRange,
+  isProductReadyNow, 
+  isProductReservation, 
+  getProductMinDeliveryDays 
+} from '../../types/database';
 import { productService } from '../../services/productService';
 import { processImageFile } from '../../lib/imageUtils';
 import { isSupabaseConfigured, getSupabasePermissionFixScript } from '../../lib/supabase';
+import { SUPABASE_VARIANTS_SQL } from '../../data/variantsSqlScript';
 
 interface AdminProductsProps {
   products: Product[];
@@ -42,6 +60,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedAvailability, setSelectedAvailability] = useState<'all' | 'ready_now' | 'reservation'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productToDelete, setProductToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -54,6 +73,8 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   const [previousPrice, setPreviousPrice] = useState<number | ''>('');
   const [sku, setSku] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [availabilityType, setAvailabilityType] = useState<AvailabilityType>('ready_now');
+  const [preparationDays, setPreparationDays] = useState<number>(3);
   const [giftType, setGiftType] = useState<GiftType>('none');
   const [stock, setStock] = useState<number>(10);
   const [minimumStock, setMinimumStock] = useState<number>(2);
@@ -66,6 +87,12 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   const [rentalConditions, setRentalConditions] = useState('');
   const [size, setSize] = useState('');
   const [color, setColor] = useState('');
+
+  // Options & Variants with different prices and names
+  const [hasVariants, setHasVariants] = useState<boolean>(false);
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [showSqlModal, setShowSqlModal] = useState<boolean>(false);
+  const [copiedSqlModal, setCopiedSqlModal] = useState<boolean>(false);
 
   // 4 image slots
   const [imageSlots, setImageSlots] = useState<ImageSlot[]>([
@@ -111,6 +138,8 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
 
   const filteredProducts = products.filter((p) => {
     if (selectedCategory !== 'all' && p.category_id !== selectedCategory) return false;
+    if (selectedAvailability === 'ready_now' && !isProductReadyNow(p)) return false;
+    if (selectedAvailability === 'reservation' && !isProductReservation(p)) return false;
     if (searchTerm.trim()) {
       const s = searchTerm.toLowerCase();
       return (
@@ -131,7 +160,9 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setPreviousPrice('');
     setSku(`BD-${Date.now().toString().slice(-4)}`);
     setCategoryId(categories[0]?.id || 'cat-flores');
-    setGiftType('none');
+    setAvailabilityType('ready_now');
+    setPreparationDays(3);
+    setGiftType('fixed');
     setStock(10);
     setMinimumStock(3);
     setActive(true);
@@ -143,6 +174,8 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setRentalConditions('');
     setSize('');
     setColor('');
+    setHasVariants(false);
+    setVariants([]);
     // Start with blank slots so user can upload their own pictures cleanly
     setImageSlots([
       { url: '', position: 1 },
@@ -163,7 +196,10 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setPreviousPrice(p.previous_price || '');
     setSku(p.sku);
     setCategoryId(p.category_id);
-    setGiftType(p.gift_type || 'none');
+    const isRes = isProductReservation(p);
+    setAvailabilityType(p.availability_type || (isRes ? 'reservation' : 'ready_now'));
+    setPreparationDays(p.preparation_days !== undefined ? p.preparation_days : (isRes ? 3 : 0));
+    setGiftType(p.gift_type || (isRes ? 'variable' : 'fixed'));
     setStock(p.stock);
     setMinimumStock(p.minimum_stock);
     setActive(p.active);
@@ -175,6 +211,15 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setRentalConditions(p.rental_conditions || '');
     setSize(p.size || '');
     setColor(p.color || '');
+
+    const pVariants = getProductVariants(p);
+    if (pVariants.length > 0) {
+      setHasVariants(true);
+      setVariants(pVariants);
+    } else {
+      setHasVariants(false);
+      setVariants([]);
+    }
 
     // Setup 4 slots from existing product images
     const slots: ImageSlot[] = [1, 2, 3, 4].map((pos) => {
@@ -249,16 +294,30 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setIsSaving(true);
     setErrorMsg(null);
 
+    const isRes = availabilityType === 'reservation';
+    const computedGiftType: GiftType = isRes ? (giftType === 'none' ? 'variable' : giftType) : 'fixed';
+
+    const effectiveVariants = hasVariants ? variants.filter((v) => v.name.trim() && Number(v.price) > 0) : [];
+    let effectivePrice = Number(price) || 0;
+    if (effectiveVariants.length > 0) {
+      const defaultV = effectiveVariants.find((v) => v.is_default) || effectiveVariants[0];
+      if (defaultV) {
+        effectivePrice = Number(defaultV.price);
+      }
+    }
+
     const productPayload: Partial<Product> = {
       name: name.trim(),
       slug: slug.trim() || name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       description: description.trim(),
-      price: Number(price) || 0,
+      price: effectivePrice,
       previous_price: previousPrice !== '' ? Number(previousPrice) : null,
       sku: sku.trim() || `BD-${Date.now().toString().slice(-4)}`,
       category_id: categoryId,
       product_type: availableForRental ? 'rental' : 'product',
-      gift_type: giftType,
+      gift_type: computedGiftType,
+      availability_type: availabilityType,
+      preparation_days: isRes ? (Number(preparationDays) || 3) : 0,
       stock: Number(stock) || 0,
       minimum_stock: Number(minimumStock) || 2,
       active,
@@ -270,6 +329,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
       rental_conditions: rentalConditions || null,
       size: size || null,
       color: color || null,
+      variants: effectiveVariants,
     };
 
     try {
@@ -351,6 +411,16 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
 
           <button
             type="button"
+            onClick={() => setShowSqlModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#FAF4F7] hover:bg-[#F2E5EF] border border-[#763D8B]/30 text-[#763D8B] rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            title="Ver y copiar el script SQL de opciones y variantes para Supabase"
+          >
+            <Database className="w-3.5 h-3.5 text-[#763D8B]" />
+            <span>Script SQL Variantes</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleSyncWithSupabase}
             disabled={isSyncingSupabase}
             className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-stone-50 border border-[#D5C2B8] text-[#423530] rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
@@ -411,8 +481,8 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
       )}
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-xl border border-[#EDE5DF] shadow-2xs">
-        <div className="relative w-full sm:w-72">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-white p-4 rounded-xl border border-[#EDE5DF] shadow-2xs">
+        <div className="relative w-full md:w-64">
           <Search className="w-4 h-4 text-[#8A796F] absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -423,20 +493,35 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <label className="text-xs text-[#7A6B63] whitespace-nowrap">Categoría:</label>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="text-xs p-2 rounded-lg border border-[#D5C2B8] bg-white text-[#2E2421] focus:outline-none"
-          >
-            <option value="all">Todas las categorías ({products.length})</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs text-[#7A6B63] whitespace-nowrap">Disponibilidad:</label>
+            <select
+              value={selectedAvailability}
+              onChange={(e) => setSelectedAvailability(e.target.value as any)}
+              className="text-xs p-2 rounded-lg border border-[#D5C2B8] bg-white text-[#2E2421] focus:outline-none font-medium"
+            >
+              <option value="all">Todos los regalos</option>
+              <option value="ready_now">⚡ Para Ya (Inmediatos)</option>
+              <option value="reservation">📅 Por Reserva (Con tiempo)</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs text-[#7A6B63] whitespace-nowrap">Categoría:</label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="text-xs p-2 rounded-lg border border-[#D5C2B8] bg-white text-[#2E2421] focus:outline-none"
+            >
+              <option value="all">Todas ({products.length})</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -446,7 +531,8 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
         <div className="block md:hidden divide-y divide-[#F2ECE6]">
           {filteredProducts.map((p) => {
             const mainImg = p.images?.[0]?.image_url || '';
-            const imgCount = p.images?.length || 0;
+            const isReady = isProductReadyNow(p);
+            const isRes = isProductReservation(p);
             return (
               <div key={p.id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-[#FAF8F5]">
                 <div className="flex items-center gap-3 min-w-0">
@@ -469,15 +555,16 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                         • {p.stock} en stock
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      {p.gift_type === 'fixed' && (
-                        <span className="px-1.5 py-0.2 rounded bg-orange-50 text-orange-700 text-[9px] font-medium">
-                          Fijo
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      {isReady ? (
+                        <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200/70 text-[9px] font-semibold flex items-center gap-0.5">
+                          <Zap className="w-2.5 h-2.5 text-amber-600 fill-amber-600" />
+                          <span>Para Ya (Tal cual foto)</span>
                         </span>
-                      )}
-                      {p.gift_type === 'variable' && (
-                        <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 text-[9px] font-medium">
-                          A tu Gusto
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded bg-purple-50 text-[#763D8B] border border-purple-200/70 text-[9px] font-semibold flex items-center gap-0.5">
+                          <CalendarDays className="w-2.5 h-2.5" />
+                          <span>Por Reserva (Mín. {p.preparation_days || 3}d)</span>
                         </span>
                       )}
                       <span className={`px-1.5 py-0.2 rounded text-[9px] font-medium ${p.active ? 'bg-emerald-50 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
@@ -513,9 +600,9 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="bg-[#FAF8F5] border-b border-[#EBE2DB] text-[#7A6B63] uppercase tracking-wider text-[10px]">
-                <th className="py-3 px-4">Foto Principal</th>
+                <th className="py-3 px-4">Foto</th>
                 <th className="py-3 px-4">Producto / SKU</th>
-                <th className="py-3 px-4">Tipo</th>
+                <th className="py-3 px-4">Disponibilidad / Entrega</th>
                 <th className="py-3 px-4">Precio</th>
                 <th className="py-3 px-4">Stock</th>
                 <th className="py-3 px-4">Fotos</th>
@@ -527,6 +614,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
               {filteredProducts.map((p) => {
                 const mainImg = p.images?.[0]?.image_url || '';
                 const imgCount = p.images?.length || 0;
+                const isReady = isProductReadyNow(p);
                 return (
                   <tr key={p.id} className="hover:bg-[#FAF8F5]">
                     <td className="py-3 px-4">
@@ -546,21 +634,25 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                     </td>
                     <td className="py-3 px-4">
                       {p.available_for_rental ? (
-                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-medium">
-                          Alquiler
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-medium">
+                          Alquiler Eventos
                         </span>
-                      ) : p.gift_type === 'fixed' ? (
-                        <span className="px-2 py-0.5 rounded bg-orange-50 text-orange-700 text-[10px] font-medium">
-                          Regalo Fijo
-                        </span>
-                      ) : p.gift_type === 'variable' ? (
-                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-medium">
-                          Personalizable
-                        </span>
+                      ) : isReady ? (
+                        <div className="space-y-0.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-semibold">
+                            <Zap className="w-3 h-3 text-amber-600 fill-amber-600" />
+                            <span>⚡ Para Ya (Inmediato)</span>
+                          </span>
+                          <span className="block text-[9px] text-[#7A6B63]">Tal cual como en la foto</span>
+                        </div>
                       ) : (
-                        <span className="px-2 py-0.5 rounded bg-stone-100 text-stone-700 text-[10px] font-medium">
-                          Venta Floral
-                        </span>
+                        <div className="space-y-0.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 text-[#763D8B] border border-purple-200 text-[10px] font-semibold">
+                            <CalendarDays className="w-3 h-3" />
+                            <span>📅 Por Reserva (Mín. {p.preparation_days || 3} días)</span>
+                          </span>
+                          <span className="block text-[9px] text-purple-700">Modificable / Personalizable</span>
+                        </div>
                       )}
                     </td>
                     <td className="py-3 px-4 font-semibold text-[#2E2421]">
@@ -797,28 +889,118 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                   </select>
                 </div>
 
-                <div>
-                  <label className="text-xs font-medium text-[#423530] block mb-1">
-                    Modalidad del Producto / Regalo *
-                  </label>
-                  <select
-                    value={giftType}
-                    onChange={(e) => setGiftType(e.target.value as GiftType)}
-                    className="w-full p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-[#2E2421] font-medium"
-                  >
-                    <option value="fixed">🎁 Regalo Fijo (No cambia, se vende tal cual con su foto y precio)</option>
-                    <option value="variable">✨ Regalo Variable (Interactivo: cliente elige globo, frase, colores, lazo, peluche)</option>
-                    <option value="none">Floristería / Producto estándar</option>
-                  </select>
-                  {giftType === 'variable' && (
-                    <p className="text-[11px] text-[#763D8B] bg-[#763D8B]/10 p-2 rounded mt-1.5 font-normal">
-                      ✨ <strong>Modo Interactivo Activado:</strong> Cuando el cliente abra este producto, se le desplegará el configurador interactivo con selección de tipo de globo, mensaje en vinilo, colores, lazo, peluche y extras.
+                {/* DISPONIBILIDAD Y TIPO DE ENTREGA */}
+                <div className="sm:col-span-2 p-4 bg-[#FDFCFA] rounded-xl border border-[#D5C2B8] space-y-3">
+                  <div>
+                    <label className="text-xs font-bold text-[#2E2421] block">
+                      Disponibilidad y Tipo de Entrega del Regalo *
+                    </label>
+                    <p className="text-[11px] text-[#7A6B63] font-light mt-0.5">
+                      Tú decides si este regalo está hecho ya para entrega inmediata o si se confecciona bajo reserva con tiempo.
                     </p>
-                  )}
-                  {giftType === 'fixed' && (
-                    <p className="text-[11px] text-stone-600 bg-stone-100 p-2 rounded mt-1.5 font-light">
-                      📦 <strong>Regalo Fijo:</strong> Se vende exactamente como viene en tu foto y descripción, sin pedirle al cliente que arme el globo o peluche.
-                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* OPTION 1: PARA YA */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAvailabilityType('ready_now');
+                        setGiftType('fixed');
+                      }}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        availabilityType === 'ready_now'
+                          ? 'border-amber-600 bg-amber-50/70 ring-2 ring-amber-600/30'
+                          : 'border-[#D5C2B8] bg-white hover:bg-stone-50'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-xs text-amber-950 flex items-center gap-1.5">
+                            <Zap className="w-4 h-4 text-amber-600 fill-amber-600" />
+                            <span>⚡ PARA YA (Hecho ya)</span>
+                          </span>
+                          {availabilityType === 'ready_now' && (
+                            <span className="text-[10px] bg-amber-600 text-white font-bold px-1.5 py-0.5 rounded">
+                              Activo
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#423530] font-medium leading-relaxed">
+                          Tal cual como está en la foto (No se modifica).
+                        </p>
+                        <p className="text-[10px] text-stone-600 font-light mt-1">
+                          • Ya elaborado en boutique.<br/>
+                          • Disponible para entrega hoy mismo en Colón o retiro en tienda.<br/>
+                          • No permite cambiar composición ni colores.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* OPTION 2: POR RESERVA */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAvailabilityType('reservation');
+                        if (giftType === 'none' || giftType === 'fixed') {
+                          setGiftType('variable');
+                        }
+                      }}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        availabilityType === 'reservation'
+                          ? 'border-[#763D8B] bg-purple-50/70 ring-2 ring-[#763D8B]/30'
+                          : 'border-[#D5C2B8] bg-white hover:bg-stone-50'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-xs text-[#763D8B] flex items-center gap-1.5">
+                            <CalendarDays className="w-4 h-4" />
+                            <span>📅 POR RESERVA (Con tiempo)</span>
+                          </span>
+                          {availabilityType === 'reservation' && (
+                            <span className="text-[10px] bg-[#763D8B] text-white font-bold px-1.5 py-0.5 rounded">
+                              Activo
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#423530] font-medium leading-relaxed">
+                          Sí se puede modificar y personalizar.
+                        </p>
+                        <p className="text-[10px] text-stone-600 font-light mt-1">
+                          • Confeccionado a pedido artesanalmente.<br/>
+                          • Requiere mínimo 3 días de anticipación para su entrega.<br/>
+                          • El cliente puede elegir globo, paleta y dedicatoria.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* EXTRA SETTINGS FOR RESERVATION */}
+                  {availabilityType === 'reservation' && (
+                    <div className="pt-2 border-t border-[#E8DED7] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-3 rounded-lg border">
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-semibold text-[#2E2421] flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-[#763D8B]" />
+                          <span>Días mínimos de anticipación requeridos:</span>
+                        </span>
+                        <p className="text-[10px] text-stone-500 font-light">
+                          En el carrito, la persona no podrá elegir una fecha menor a este plazo (ej. dentro de 3 días).
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max="30"
+                          value={preparationDays}
+                          onChange={(e) => setPreparationDays(Math.max(1, Number(e.target.value) || 1))}
+                          className="w-20 p-2 text-center text-xs font-bold rounded-lg border border-[#D5C2B8] bg-[#FAF8F5] text-[#2E2421]"
+                        />
+                        <span className="text-xs text-stone-600 font-medium">días</span>
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -850,6 +1032,218 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                     placeholder="Dejar vacío si no hay oferta"
                     className="w-full p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-[#2E2421]"
                   />
+                </div>
+
+                {/* VARIANTS AND MULTIPLE OPTIONS / SIZES WITH DIFFERENT PRICES */}
+                <div className="sm:col-span-2 p-4 bg-[#FDFCFA] rounded-xl border-2 border-[#763D8B]/35 space-y-4 shadow-xs">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-[#E8DED7] pb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-[#763D8B]" />
+                        <h4 className="text-xs font-bold text-[#2E2421]">
+                          ¿Tiene varias opciones, tamaños o presentaciones con distintos precios?
+                        </h4>
+                      </div>
+                      <p className="text-[11px] text-[#7A6B63] font-light mt-0.5">
+                        Permite configurar presentaciones con su propio nombre y precio (ej. 12 Rosas $35, 24 Rosas $55, Sombrerera Grande $95).
+                      </p>
+                    </div>
+
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={hasVariants}
+                        onChange={(e) => {
+                          const enabled = e.target.checked;
+                          setHasVariants(enabled);
+                          if (enabled && variants.length === 0) {
+                            setVariants([
+                              { id: `var-${Date.now()}-1`, name: 'Pequeño (12 Rosas)', price: price || 35, is_default: true, stock: 10 },
+                              { id: `var-${Date.now()}-2`, name: 'Mediano (24 Rosas)', price: (price ? price + 20 : 55), is_default: false, stock: 10 },
+                              { id: `var-${Date.now()}-3`, name: 'Grande (50 Rosas)', price: (price ? price + 55 : 95), is_default: false, stock: 10 },
+                            ]);
+                          }
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#763D8B]"></div>
+                      <span className="ml-2 text-xs font-semibold text-[#2E2421]">
+                        {hasVariants ? 'Activado' : 'Desactivado'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {hasVariants && (
+                    <div className="space-y-3 animate-fade-in">
+                      {/* Presets and Helpers */}
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] bg-[#FAF4F7] p-2.5 rounded-lg border border-[#763D8B]/20">
+                        <span className="text-[#763D8B] font-bold">Plantillas Rápidas:</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVariants([
+                              { id: `var-${Date.now()}-1`, name: 'Chico (12 Rosas)', price: 35, is_default: true, stock: 10 },
+                              { id: `var-${Date.now()}-2`, name: 'Mediano (24 Rosas)', price: 55, is_default: false, stock: 10 },
+                              { id: `var-${Date.now()}-3`, name: 'Grande (50 Rosas)', price: 95, is_default: false, stock: 10 },
+                              { id: `var-${Date.now()}-4`, name: 'Imperial VIP (100 Rosas)', price: 175, is_default: false, stock: 5 },
+                            ]);
+                            setPrice(35);
+                          }}
+                          className="px-2.5 py-1 bg-white hover:bg-stone-50 border border-[#D5C2B8] text-[#55434F] rounded-md font-medium shadow-2xs transition-colors cursor-pointer"
+                        >
+                          🌹 Cantidades de Rosas (12, 24, 50, 100)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVariants([
+                              { id: `var-${Date.now()}-1`, name: 'Tamaño Pequeño (15cm)', price: 25, is_default: true, stock: 10 },
+                              { id: `var-${Date.now()}-2`, name: 'Tamaño Mediano (25cm)', price: 45, is_default: false, stock: 10 },
+                              { id: `var-${Date.now()}-3`, name: 'Tamaño Grande Deluxe (35cm)', price: 75, is_default: false, stock: 10 },
+                            ]);
+                            setPrice(25);
+                          }}
+                          className="px-2.5 py-1 bg-white hover:bg-stone-50 border border-[#D5C2B8] text-[#55434F] rounded-md font-medium shadow-2xs transition-colors cursor-pointer"
+                        >
+                          📦 Tamaños de Caja (Pequeño, Mediano, Grande)
+                        </button>
+                      </div>
+
+                      {/* List of Variant Items */}
+                      <div className="space-y-2">
+                        {variants.map((v, idx) => (
+                          <div
+                            key={v.id || idx}
+                            className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 bg-white p-3 rounded-xl border border-[#EDE5DF] shadow-2xs"
+                          >
+                            <div className="flex-1">
+                              <label className="text-[10px] text-[#7A6B63] uppercase font-bold block mb-0.5">
+                                Nombre de la Opción / Tamaño #{idx + 1} *
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={v.name}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setVariants((prev) =>
+                                    prev.map((item, i) => (i === idx ? { ...item, name: val } : item))
+                                  );
+                                }}
+                                placeholder="Ej. Mediano (24 Rosas y Peluche)"
+                                className="w-full text-xs p-2 rounded-lg bg-[#FAF8F5] border border-[#D5C2B8] text-[#2E2421] font-medium"
+                              />
+                            </div>
+
+                            <div className="w-full sm:w-28">
+                              <label className="text-[10px] text-[#7A6B63] uppercase font-bold block mb-0.5">
+                                Precio ($ USD) *
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                required
+                                value={v.price}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value) || 0;
+                                  setVariants((prev) =>
+                                    prev.map((item, i) => (i === idx ? { ...item, price: val } : item))
+                                  );
+                                  if (v.is_default || idx === 0) {
+                                    setPrice(val);
+                                  }
+                                }}
+                                className="w-full text-xs p-2 rounded-lg bg-[#FAF8F5] border border-[#D5C2B8] text-[#2E2421] font-bold text-center"
+                              />
+                            </div>
+
+                            <div className="w-full sm:w-24">
+                              <label className="text-[10px] text-[#7A6B63] uppercase font-bold block mb-0.5">
+                                SKU / Código
+                              </label>
+                              <input
+                                type="text"
+                                value={v.sku || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setVariants((prev) =>
+                                    prev.map((item, i) => (i === idx ? { ...item, sku: val } : item))
+                                  );
+                                }}
+                                placeholder="BD-OP1"
+                                className="w-full text-xs p-2 rounded-lg bg-[#FAF8F5] border border-[#D5C2B8] text-[#2E2421]"
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between sm:justify-start gap-2 pt-1 sm:pt-4">
+                              <label className="flex items-center gap-1.5 cursor-pointer text-xs text-stone-700 font-medium">
+                                <input
+                                  type="radio"
+                                  name="default_variant"
+                                  checked={Boolean(v.is_default)}
+                                  onChange={() => {
+                                    setVariants((prev) =>
+                                      prev.map((item, i) => ({
+                                        ...item,
+                                        is_default: i === idx,
+                                      }))
+                                    );
+                                    setPrice(v.price);
+                                  }}
+                                  className="text-[#763D8B] focus:ring-[#763D8B]"
+                                />
+                                <span className="text-[11px] whitespace-nowrap">Predeterminada</span>
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (variants.length <= 1) {
+                                    setHasVariants(false);
+                                    setVariants([]);
+                                  } else {
+                                    setVariants((prev) => prev.filter((_, i) => i !== idx));
+                                  }
+                                }}
+                                className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Eliminar esta opción"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextIdx = variants.length + 1;
+                            setVariants((prev) => [
+                              ...prev,
+                              {
+                                id: `var-${Date.now()}-${nextIdx}`,
+                                name: `Opción ${nextIdx}`,
+                                price: (variants[variants.length - 1]?.price || price || 35) + 15,
+                                is_default: false,
+                                stock: 10,
+                              },
+                            ]);
+                          }}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#763D8B] hover:text-[#582769] bg-white hover:bg-purple-50 border border-[#763D8B]/30 px-3 py-2 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>+ Agregar otra opción / precio</span>
+                        </button>
+
+                        <span className="text-[11px] text-stone-500">
+                          {variants.length} opción(es) configuradas
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1040,6 +1434,83 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                 className="px-4 py-2.5 bg-[#FAF8F5] hover:bg-[#F2ECE6] text-[#423530] border border-[#D5C2B8] text-xs font-medium uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
               >
                 Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Supabase Variants SQL Script Modal */}
+      {showSqlModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-2xl w-full border border-[#D5C2B8] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-[#EDE5DF] flex items-center justify-between bg-[#FAF8F5]">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#763D8B]/10 text-[#763D8B] flex items-center justify-center">
+                  <Database className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-base sm:text-lg font-medium text-[#2E2421]">
+                    Script SQL para Opciones y Variantes (Supabase)
+                  </h3>
+                  <p className="text-[11px] text-[#7A6B63]">
+                    Copia y ejecuta este script en el SQL Editor de tu proyecto Supabase.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSqlModal(false)}
+                className="p-1.5 text-stone-400 hover:text-stone-700 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Instructions */}
+            <div className="p-4 bg-amber-50/70 border-b border-amber-200/60 text-xs text-amber-950 flex items-start gap-2.5">
+              <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold text-amber-950">
+                  ¿Cómo instalarlo en tu base de datos?
+                </p>
+                <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-amber-900 font-light">
+                  <li>Haz clic en el botón <strong>"Copiar Script SQL"</strong> aquí abajo.</li>
+                  <li>Abre tu panel de Supabase y ve a la sección <strong>SQL Editor</strong>.</li>
+                  <li>Pega el código y haz clic en <strong>"Run"</strong>.</li>
+                  <li>¡Listo! Tu base de datos admitirá variantes, opciones y diferentes precios sin errores de permisos.</li>
+                </ol>
+              </div>
+            </div>
+
+            {/* Code container */}
+            <div className="p-4 overflow-y-auto flex-1 bg-[#1E1E1E] text-stone-200 font-mono text-xs select-all">
+              <pre className="whitespace-pre-wrap leading-relaxed text-[11px]">
+                {SUPABASE_VARIANTS_SQL}
+              </pre>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-[#EDE5DF] bg-white flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(SUPABASE_VARIANTS_SQL);
+                  setCopiedSqlModal(true);
+                  setTimeout(() => setCopiedSqlModal(false), 3000);
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#763D8B] hover:bg-[#602F72] text-white rounded-lg text-xs font-semibold uppercase tracking-wider shadow-sm transition-colors cursor-pointer"
+              >
+                {copiedSqlModal ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                <span>{copiedSqlModal ? '¡Script Copiado al Portapapeles!' : 'Copiar Script SQL'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowSqlModal(false)}
+                className="px-4 py-2.5 rounded-lg border border-[#D5C2B8] bg-white text-[#423530] hover:bg-[#F2ECE6] text-xs font-medium cursor-pointer"
+              >
+                Cerrar
               </button>
             </div>
           </div>

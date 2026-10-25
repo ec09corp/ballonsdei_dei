@@ -695,7 +695,10 @@ export const ArrangementCustomizerModal: React.FC<ArrangementCustomizerModalProp
         </div>
 
         {/* STICKY FOOTER: ALWAYS VISIBLE AND ACCESSIBLE WITHOUT OVERFLOW */}
-        <div className="p-3.5 sm:p-5 bg-white border-t border-[#EBE2DB] flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+        <div 
+          className="p-3.5 sm:p-5 bg-white border-t border-[#EBE2DB] flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <div className="text-center sm:text-left">
             <span className="text-[11px] text-stone-500 block leading-tight">Total con tu personalización:</span>
             <span className="text-xl sm:text-2xl font-extrabold text-[#2E2421]">

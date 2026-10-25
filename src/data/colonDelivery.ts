@@ -100,61 +100,6 @@ export const COLON_DISTRICTS: DistritoDelivery[] = [
   },
 ];
 
-export const AVAILABLE_EXTRAS: OrderExtraItem[] = [
-  {
-    id: 'extra-ferrero-8',
-    name: 'Caja de Bombones Ferrero Rocher (8 uds)',
-    category: 'chocolate',
-    price: 7.50,
-    description: 'Chocolates crujientes con avellana entera y baño de cacao.',
-  },
-  {
-    id: 'extra-ferrero-16',
-    name: 'Caja de Bombones Ferrero Rocher (16 uds)',
-    category: 'chocolate',
-    price: 14.00,
-    description: 'Presentación de lujo ideal para aniversarios y ocasiones especiales.',
-  },
-  {
-    id: 'extra-lindt-chocolate',
-    name: 'Barra de Chocolate Suizo Lindt Excellence',
-    category: 'chocolate',
-    price: 4.50,
-    description: 'Chocolate suizo fino con leche o amargo 70%.',
-  },
-  {
-    id: 'extra-bombones-surtidos',
-    name: 'Caja de Bombones Belgas Surtidos',
-    category: 'chocolate',
-    price: 8.00,
-    description: 'Selección de pralinés finos y trufas artesanales.',
-  },
-  {
-    id: 'extra-peluche-oso',
-    name: 'Peluche Mediano Suave Cariñoso',
-    category: 'peluche',
-    price: 10.00,
-    description: 'Peluche hipoalergénico de alta suavidad para abrazar.',
-  },
-  {
-    id: 'extra-topper-acrilico',
-    name: 'Topper Acrílico Espejado ("Feliz Cumpleaños" / "Te Amo")',
-    category: 'accesorio',
-    price: 4.00,
-    description: 'Letrero decorativo dorado o plateado para clavar en el arreglo.',
-  },
-  {
-    id: 'extra-globo-helio',
-    name: 'Globo Metálico Extra con Helio (18 pulgadas)',
-    category: 'globo',
-    price: 4.50,
-    description: 'Globo foil flotante con temática a elección (Amor, Cumpleaños, Felicitaciones).',
-  },
-  {
-    id: 'extra-luces-led',
-    name: 'Luces Micro-LED Cálidas de Hadas con Baterías',
-    category: 'accesorio',
-    price: 3.50,
-    description: 'Guirnalda de luz suave entrelazada entre las flores y globos.',
-  },
-];
+// Starts completely empty as requested by the user, so they can add their own chocolates and complementos from Admin
+export const AVAILABLE_EXTRAS: OrderExtraItem[] = [];
+

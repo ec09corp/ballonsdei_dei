@@ -137,15 +137,18 @@ export const Header: React.FC<HeaderProps> = ({
         : 'bg-white/98 backdrop-blur-md border-b border-stone-200 shadow-2xs'
     }`}>
       {/* Top Announcement Bar */}
-      <div className="bg-[#1F0E23] text-[#F3EBF0] text-xs py-1.5 sm:py-2 px-3 sm:px-4 border-b border-[#C5A059]/20">
+      <div 
+        className="bg-[#1F0E23] text-[#F3EBF0] text-xs py-1.5 sm:py-2 px-3 sm:px-4 border-b border-[#C5A059]/20"
+        style={{ paddingTop: 'max(0.35rem, env(safe-area-inset-top, 0px))' }}
+      >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="text-[10px] sm:text-xs font-light text-stone-300 mx-auto sm:mx-0 flex items-center gap-1.5 sm:gap-2 truncate">
             <span className="text-[#C5A059]">✦</span>
-            <span className="font-bold text-white tracking-wider">BALLONSDEI</span>
+            <span className="font-bold text-white tracking-wider">BALLOONSDEI</span>
             <span className="text-[#C5A059]">·</span>
             <span className="hidden sm:inline">Obsequios Personalizados & Arreglos Florales · Colón · </span>
             <span className="sm:hidden">Colón · </span>
-            <span>VIP WhatsApp: </span>
+            <span>WhatsApp: </span>
             <a
               href={`https://wa.me/${cleanPhone}`}
               target="_blank"
@@ -196,25 +199,25 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="flex items-center gap-2 sm:gap-2.5">
                     <img
                       src={settings.logo_url}
-                      alt={settings.store_name || 'Ballonsdei'}
+                      alt={settings.store_name || 'BALLOONSDEI'}
                       className="h-9 sm:h-12 w-auto max-w-[120px] sm:max-w-[150px] object-contain rounded-md pointer-events-none"
                     />
                     <div className="flex flex-col text-left">
                       <span className="font-serif text-base sm:text-2xl tracking-[0.14em] font-medium text-stone-900 group-hover:text-[#763D8B] transition-colors uppercase leading-tight">
-                        {settings.store_name || 'Ballonsdei'}
+                        {settings.store_name || 'BALLOONSDEI'}
                       </span>
                       <span className="text-[8px] sm:text-[9px] tracking-[0.22em] text-[#763D8B] font-semibold uppercase">
-                        Boutique de Autor
+                        Arreglos Personalizados
                       </span>
                     </div>
                   </div>
                 ) : (
                   <div className="flex flex-col text-left">
                     <span className="font-serif text-xl sm:text-3xl tracking-[0.18em] font-medium text-stone-900 group-hover:text-[#763D8B] transition-colors uppercase">
-                      {settings.store_name || 'Ballonsdei'}
+                      {settings.store_name || 'BALLOONSDEI'}
                     </span>
                     <span className="text-[9px] tracking-[0.3em] text-[#763D8B] uppercase font-semibold -mt-0.5">
-                      Boutique de Autor
+                      Arreglos Personalizados
                     </span>
                   </div>
                 )}
@@ -300,7 +303,13 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex">
-          <div className="w-4/5 max-w-sm bg-white h-[100dvh] max-h-[100dvh] shadow-2xl flex flex-col p-5 sm:p-6 overflow-y-auto">
+          <div 
+            className="w-4/5 max-w-sm bg-white h-[100dvh] max-h-[100dvh] shadow-2xl flex flex-col p-5 sm:p-6 overflow-y-auto"
+            style={{
+              paddingTop: 'max(1.25rem, env(safe-area-inset-top, 0px))',
+              paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 0px))',
+            }}
+          >
             <div className="flex items-center justify-between pb-5 border-b border-stone-200">
               <div
                 onClick={handleLogoTap}

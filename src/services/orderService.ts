@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Order, OrderItem, OrderStatus, PaymentStatus } from '../types/database';
 
-const LOCAL_ORDERS_KEY = 'ballonsdei_orders_v2';
+const LOCAL_ORDERS_KEY = 'balloonsdei_orders_v3';
 
 const INITIAL_ORDERS: Order[] = [];
 
@@ -25,6 +25,9 @@ function saveLocalOrders(orders: Order[]) {
 
 export const orderService = {
   async getOrders(): Promise<Order[]> {
+    const localOrders = getLocalOrders();
+    const localMap = new Map(localOrders.map((o) => [o.order_number, o]));
+
     if (supabase && isSupabaseConfigured) {
       try {
         const { data, error } = await supabase
@@ -36,14 +39,22 @@ export const orderService = {
           .order('created_at', { ascending: false });
 
         if (!error && data) {
-          return data;
+          // Merge any locally preserved receipt_urls if Supabase column was missing
+          return (data as any[]).map((supOrder) => {
+            const local = localMap.get(supOrder.order_number);
+            return {
+              ...supOrder,
+              receipt_url: supOrder.receipt_url || local?.receipt_url || null,
+              receipt_ref: supOrder.receipt_ref || local?.receipt_ref || null,
+            };
+          });
         }
       } catch (err) {
         console.warn('Error fetching orders from Supabase, using local:', err);
       }
     }
 
-    return getLocalOrders();
+    return localOrders;
   },
 
   async createOrder(
@@ -111,29 +122,51 @@ export const orderService = {
           console.warn('Customer upsert non-critical warning:', cErr);
         }
 
-        // 2. Insert order
-        const { data: insertedOrder, error: orderErr } = await supabase
-          .from('orders')
-          .insert({
-            order_number: orderNumber,
-            customer_id: customerId,
-            customer_name: orderData.customer_name,
-            customer_email: orderData.customer_email,
-            customer_phone: orderData.customer_phone,
-            delivery_address: orderData.delivery_address,
-            delivery_date: orderData.delivery_date,
-            delivery_type: orderData.delivery_type,
-            payment_method: orderData.payment_method,
-            payment_status: 'pending' as PaymentStatus,
-            status: 'pending' as OrderStatus,
-            subtotal,
-            total,
-            notes: formattedNotes,
-          })
-          .select()
-          .single();
+        // 2. Insert order with receipt fields
+        let insertedOrder: any = null;
+        const baseOrderPayload = {
+          order_number: orderNumber,
+          customer_id: customerId,
+          customer_name: orderData.customer_name,
+          customer_email: orderData.customer_email,
+          customer_phone: orderData.customer_phone,
+          delivery_address: orderData.delivery_address,
+          delivery_date: orderData.delivery_date,
+          delivery_type: orderData.delivery_type,
+          payment_method: orderData.payment_method,
+          payment_status: 'pending' as PaymentStatus,
+          status: 'pending' as OrderStatus,
+          subtotal,
+          total,
+          notes: formattedNotes,
+        };
 
-        if (orderErr) throw orderErr;
+        try {
+          const { data, error } = await supabase
+            .from('orders')
+            .insert({
+              ...baseOrderPayload,
+              receipt_url: orderData.receipt_url || null,
+              receipt_ref: orderData.receipt_ref || null,
+            })
+            .select()
+            .single();
+
+          if (error) throw error;
+          insertedOrder = data;
+        } catch (firstInsertErr: any) {
+          // If Supabase rejected receipt_url column (e.g. column does not exist yet), insert without it
+          console.warn('Orders insert with receipt_url notice, retrying base payload:', firstInsertErr?.message);
+          const { data: retryData, error: retryErr } = await supabase
+            .from('orders')
+            .insert(baseOrderPayload)
+            .select()
+            .single();
+
+          if (retryErr) throw retryErr;
+          insertedOrder = retryData;
+        }
+
 
         // 3. Insert order items
         const itemsToInsert = items.map((it) => ({

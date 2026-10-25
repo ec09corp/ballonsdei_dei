@@ -220,6 +220,77 @@ export async function uploadProductImage(
 }
 
 /**
+ * Storage helper for uploading payment receipt screenshots/comprobantes to Supabase Storage
+ * under 'comprobantes' or 'product-images' bucket, with fallback to web-safe compressed Data URL.
+ */
+export async function uploadReceiptImage(
+  fileOrBlobOrUrl: File | Blob | string,
+  orderIdentifier: string = 'pedido'
+): Promise<{ url: string; isRemote: boolean; error: Error | null }> {
+  // If already a remote URL (http/https), return as is
+  if (typeof fileOrBlobOrUrl === 'string' && fileOrBlobOrUrl.startsWith('http')) {
+    return { url: fileOrBlobOrUrl, isRemote: true, error: null };
+  }
+
+  let finalBlob: Blob | File | null = null;
+  let fallbackDataUrl = '';
+
+  if (typeof fileOrBlobOrUrl === 'string') {
+    fallbackDataUrl = fileOrBlobOrUrl;
+    try {
+      const res = await fetch(fileOrBlobOrUrl);
+      finalBlob = await res.blob();
+    } catch {
+      return { url: fallbackDataUrl, isRemote: false, error: null };
+    }
+  } else {
+    finalBlob = fileOrBlobOrUrl;
+    try {
+      if (fileOrBlobOrUrl instanceof File) {
+        fallbackDataUrl = await processImageFile(fileOrBlobOrUrl, 900, 0.85);
+      }
+    } catch {
+      fallbackDataUrl = '';
+    }
+  }
+
+  const client = getActiveSupabaseClient();
+  if (!client || !finalBlob) {
+    return { url: fallbackDataUrl, isRemote: false, error: null };
+  }
+
+  const cleanId = orderIdentifier.replace(/[^a-zA-Z0-9_-]/g, '') || 'recibo';
+  const timestamp = Date.now();
+  const filePath = `comprobantes/recibo-${cleanId}-${timestamp}.jpg`;
+
+  // First try 'comprobantes' bucket, then 'product-images'
+  const bucketsToTry = ['comprobantes', 'product-images'];
+
+  for (const bucket of bucketsToTry) {
+    try {
+      const { error: uploadErr } = await client.storage
+        .from(bucket)
+        .upload(filePath, finalBlob, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+          upsert: true,
+        });
+
+      if (!uploadErr) {
+        const { data: pubData } = client.storage.from(bucket).getPublicUrl(filePath);
+        if (pubData?.publicUrl) {
+          return { url: pubData.publicUrl, isRemote: true, error: null };
+        }
+      }
+    } catch (bErr) {
+      console.warn(`Bucket ${bucket} upload notice:`, bErr);
+    }
+  }
+
+  return { url: fallbackDataUrl, isRemote: false, error: null };
+}
+
+/**
  * Test connectivity with Supabase project
  */
 export async function testSupabaseConnection(url: string, key: string): Promise<{ success: boolean; message: string; tablesReady?: boolean }> {
@@ -529,20 +600,32 @@ GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
 
--- Crear Bucket de Storage para Imágenes de Productos
+-- Crear Buckets de Storage para Imágenes y Comprobantes
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('product-images', 'product-images', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('comprobantes', 'comprobantes', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
 -- Políticas públicas para el bucket de imágenes
 DROP POLICY IF EXISTS "Public Access product-images" ON storage.objects;
 DROP POLICY IF EXISTS "Public Insert product-images" ON storage.objects;
-DROP POLICY IF EXISTS "Public Update product-images" ON storage.objects;
-DROP POLICY IF EXISTS "Public Delete product-images" ON storage.objects;
-
 CREATE POLICY "Public Access product-images" ON storage.objects
 FOR ALL USING (bucket_id = 'product-images')
 WITH CHECK (bucket_id = 'product-images');
+
+-- Políticas públicas para el bucket de comprobantes
+DROP POLICY IF EXISTS "Public Access comprobantes" ON storage.objects;
+DROP POLICY IF EXISTS "Public Insert comprobantes" ON storage.objects;
+CREATE POLICY "Public Access comprobantes" ON storage.objects
+FOR ALL USING (bucket_id = 'comprobantes')
+WITH CHECK (bucket_id = 'comprobantes');
+
+-- Asegurar columnas de comprobantes en orders
+ALTER TABLE IF EXISTS public.orders ADD COLUMN IF NOT EXISTS receipt_url TEXT;
+ALTER TABLE IF EXISTS public.orders ADD COLUMN IF NOT EXISTS receipt_ref TEXT;
 `;
 }
 

@@ -12,9 +12,19 @@ import {
   Heart,
   ZoomIn,
   Sparkles,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Zap,
+  Clock,
+  CalendarDays
 } from 'lucide-react';
-import { Product } from '../types/database';
+import { 
+  Product, 
+  ProductVariant,
+  getProductVariants,
+  isProductReadyNow, 
+  isProductReservation, 
+  getProductMinDeliveryDays 
+} from '../types/database';
 import { useCart } from '../context/CartContext';
 import { InteractiveGiftCustomizer, CustomizerState } from './InteractiveGiftCustomizer';
 import { LiveGiftPreviewStage } from './LiveGiftPreviewStage';
@@ -44,6 +54,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [dedicationMessage, setDedicationMessage] = useState<string>('');
   const [copiedLink, setCopiedLink] = useState(false);
 
+  // Presentation & Size Variants with specific prices
+  const productVariants = getProductVariants(product);
+  const [selectedOption, setSelectedOption] = useState<ProductVariant | null>(() => {
+    if (productVariants.length > 0) {
+      return productVariants.find((v) => v.is_default) || productVariants[0];
+    }
+    return null;
+  });
+
   // Interactive Customizer State for Variable / Customizable Gifts
   const [customGiftState, setCustomGiftState] = useState<CustomizerState>({
     balloonType: 'Burbuja con Confeti',
@@ -61,21 +80,25 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [rentalEndDate, setRentalEndDate] = useState('');
   const [rentalRequested, setRentalRequested] = useState(false);
 
-  const isVariableGift = product.gift_type === 'variable';
-  const isFixedGift = product.gift_type === 'fixed';
+  const isReady = isProductReadyNow(product);
+  const isRes = isProductReservation(product);
   const isRental = product.available_for_rental;
 
-  // Allows customer to customize any gift (fixed or variable) if they wish!
-  const [isCustomizing, setIsCustomizing] = useState<boolean>(isVariableGift);
+  // Reservation items allow customization; Ready-Now items are strictly sold as pictured (tal cual en la foto)
+  const [isCustomizing, setIsCustomizing] = useState<boolean>(!isReady && isRes);
+
+  const currentBasePrice = selectedOption
+    ? Number(selectedOption.price)
+    : isRental && product.rental_price
+    ? product.rental_price
+    : product.price;
 
   const customTotal =
-    product.price + (customGiftState.plushPrice || 0) + customGiftState.extras.reduce((s, e) => s + e.price, 0);
+    currentBasePrice + (customGiftState.plushPrice || 0) + customGiftState.extras.reduce((s, e) => s + e.price, 0);
 
   const unitPrice = isCustomizing 
     ? customTotal 
-    : isRental && product.rental_price 
-    ? product.rental_price 
-    : product.price;
+    : currentBasePrice;
 
   // Prepare images array (up to 4)
   const images = (product.images && product.images.length > 0)
@@ -100,14 +123,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   };
 
   const handleAddToCart = () => {
+    const finalVariantName = selectedOption ? selectedOption.name : selectedVariant;
     addItem(product, quantity, {
       isRental: product.available_for_rental,
       rentalStartDate,
       rentalEndDate,
-      variant: selectedVariant,
+      variant: finalVariantName,
       dedication: dedicationMessage,
       customization: isCustomizing ? customGiftState : undefined,
-      customPrice: isCustomizing ? customTotal : undefined,
+      customPrice: unitPrice,
     });
     onClose();
   };
@@ -124,9 +148,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/60 backdrop-blur-sm overflow-hidden animate-fade-in">
       <div 
-        className="relative w-full max-w-5xl bg-[#FAF8F5] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden my-0 sm:my-auto border-t sm:border border-[#E8DED7] flex flex-col h-[94dvh] max-h-[94dvh] animate-modal-enter"
+        className="relative w-full max-w-5xl bg-[#FAF8F5] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden my-0 sm:my-auto border-t sm:border border-[#E8DED7] flex flex-col h-[94dvh] max-h-[94dvh] animate-bottom-sheet sm:animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Mobile Top Drag Indicator */}
+        <div className="sm:hidden pt-2.5 pb-1 bg-white flex justify-center">
+          <span className="w-12 h-1.5 bg-stone-300 rounded-full" />
+        </div>
+
         {/* Top Header Bar */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-[#EBE2DB] bg-white">
           <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-[#8A796F] font-light">
@@ -367,9 +396,50 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   </p>
                 </div>
 
+                {/* Presentation / Size Options in Customizer View */}
+                {productVariants.length > 0 && (
+                  <div className="p-4 bg-[#FAF8F5] rounded-xl border border-[#E8DED7] shadow-2xs space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#2B211D] flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-[#763D8B]" />
+                        <span>Presentación o Tamaño del Arreglo:</span>
+                      </span>
+                      {selectedOption && (
+                        <span className="text-[11px] text-[#763D8B] font-semibold bg-white px-2 py-0.5 rounded-full border border-[#763D8B]/20">
+                          Base: ${Number(selectedOption.price).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                      {productVariants.map((v) => {
+                        const isSelected = selectedOption?.id === v.id || selectedOption?.name === v.name;
+                        return (
+                          <button
+                            key={v.id || v.name}
+                            type="button"
+                            onClick={() => setSelectedOption(v)}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                              isSelected
+                                ? 'border-[#763D8B] bg-white ring-2 ring-[#763D8B]/25 shadow-xs'
+                                : 'border-[#EDE5DF] bg-white/70 hover:bg-white hover:border-[#D5C2B8]'
+                            }`}
+                          >
+                            <span className={`text-xs font-medium truncate ${isSelected ? 'text-[#763D8B]' : 'text-[#382B26]'}`}>
+                              {v.name}
+                            </span>
+                            <span className={`text-xs font-bold shrink-0 ${isSelected ? 'text-[#763D8B]' : 'text-[#2B211D]'}`}>
+                              ${Number(v.price).toFixed(2)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Step-by-Step Customizer */}
                 <InteractiveGiftCustomizer
-                  basePrice={product.price}
+                  basePrice={currentBasePrice}
                   customization={customGiftState}
                   onChange={setCustomGiftState}
                 />
@@ -518,16 +588,24 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <div className="lg:col-span-6 flex flex-col justify-between space-y-6">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-2">
-                    {isFixedGift && (
-                      <span className="px-2.5 py-0.5 bg-stone-200 text-stone-800 text-[11px] font-semibold tracking-wider uppercase rounded-xs">
-                        Regalo Fijo
+                    {isReady ? (
+                      <span className="px-2.5 py-0.5 bg-amber-500 text-white text-[11px] font-semibold tracking-wider uppercase rounded-xs flex items-center gap-1 shadow-2xs">
+                        <Zap className="w-3 h-3 text-white fill-white" />
+                        <span>⚡ Para Ya (Tal cual en foto)</span>
                       </span>
-                    )}
+                    ) : isRes ? (
+                      <span className="px-2.5 py-0.5 bg-[#763D8B] text-white text-[11px] font-semibold tracking-wider uppercase rounded-xs flex items-center gap-1 shadow-2xs">
+                        <CalendarDays className="w-3 h-3" />
+                        <span>📅 Por Reserva (Personalizable)</span>
+                      </span>
+                    ) : null}
+
                     {isRental && (
                       <span className="px-2.5 py-0.5 bg-[#556B5C]/15 text-[#556B5C] text-[11px] font-medium tracking-wider uppercase rounded-xs">
                         Alquiler de Mobiliario
                       </span>
                     )}
+
                     {isOutOfStock ? (
                       <span className="px-2.5 py-0.5 bg-rose-100 text-rose-800 text-[11px] font-medium rounded-xs">
                         Agotado
@@ -553,6 +631,31 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     <span>Stock: {product.stock} unidades</span>
                   </div>
 
+                  {/* Policy and Timing Alert Banner */}
+                  {isReady ? (
+                    <div className="mt-3 p-3 bg-amber-50/90 border border-amber-200 rounded-xl space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
+                        <Zap className="w-3.5 h-3.5 text-amber-600 fill-amber-600 shrink-0" />
+                        <span>Regalo Hecho Ya · Entrega Inmediata</span>
+                      </div>
+                      <p className="text-[11px] text-[#423530] font-light leading-relaxed">
+                        Este arreglo se encuentra terminado en boutique y se entrega <strong>tal cual como está en la foto</strong> (sin modificaciones).
+                        ¡Disponible para entrega hoy mismo en Colón o retiro en tienda!
+                      </p>
+                    </div>
+                  ) : isRes ? (
+                    <div className="mt-3 p-3 bg-purple-50/90 border border-purple-200 rounded-xl space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#763D8B]">
+                        <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+                        <span>Regalo Por Reserva · Personalizable</span>
+                      </div>
+                      <p className="text-[11px] text-[#423530] font-light leading-relaxed">
+                        Esta creación se confecciona artesanalmente a pedido y <strong>sí se puede modificar y personalizar</strong> (colores, dedicatoria, frase en globo).
+                        Requiere reserva con <strong>mínimo {product.preparation_days || 3} días de anticipación</strong>.
+                      </p>
+                    </div>
+                  ) : null}
+
                   <div className="mt-4 flex flex-wrap items-baseline justify-between gap-3">
                     <div className="flex items-baseline gap-3">
                       <span className="text-3xl font-semibold text-[#2B211D]">
@@ -569,7 +672,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {!isRental && (
+                      {!isRental && isRes && (
                         <button
                           type="button"
                           onClick={() => setIsCustomizing(true)}
@@ -580,7 +683,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         </button>
                       )}
 
-                      {onOpenCustomizerStudio && !isRental && (
+                      {onOpenCustomizerStudio && !isRental && isRes && (
                         <button
                           type="button"
                           onClick={() => onOpenCustomizerStudio(product)}
@@ -637,6 +740,57 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                             className="w-full text-xs p-2 rounded-md bg-white border border-[#D5C2B8] text-[#2E2421]"
                           />
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Presentation & Size Options with Prices */}
+                  {productVariants.length > 0 && !isRental && (
+                    <div className="mt-5 p-4 bg-white rounded-xl border border-[#E8DED7] shadow-2xs space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#2B211D] flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-[#763D8B]" />
+                          <span>Selecciona la Opción o Tamaño:</span>
+                        </span>
+                        {selectedOption && (
+                          <span className="text-[11px] text-[#763D8B] font-semibold bg-[#FAF4F7] px-2.5 py-0.5 rounded-full border border-[#763D8B]/20">
+                            {selectedOption.name} · ${Number(selectedOption.price).toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {productVariants.map((v) => {
+                          const isSelected = selectedOption?.id === v.id || selectedOption?.name === v.name;
+                          return (
+                            <button
+                              key={v.id || v.name}
+                              type="button"
+                              onClick={() => setSelectedOption(v)}
+                              className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                                isSelected
+                                  ? 'border-[#763D8B] bg-[#FAF4F7] ring-2 ring-[#763D8B]/20 shadow-xs'
+                                  : 'border-[#EDE5DF] bg-[#FAF8F5] hover:border-[#D5C2B8] hover:bg-white'
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <span className={`text-xs block font-semibold truncate ${isSelected ? 'text-[#763D8B]' : 'text-[#382B26]'}`}>
+                                  {v.name}
+                                </span>
+                                {v.sku && (
+                                  <span className="text-[10px] text-stone-500 block">
+                                    Ref: {v.sku}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className={`text-sm font-bold ${isSelected ? 'text-[#763D8B]' : 'text-[#2B211D]'}`}>
+                                  ${Number(v.price).toFixed(2)}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -746,6 +900,59 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
             </div>
           )}
+          {/* Mobile Bottom Spacer to prevent sticky bar overlap */}
+          <div className="h-16 sm:hidden" />
+        </div>
+
+        {/* Mobile Sticky Thumb-Zone Action Bar (iOS & Android Ergonomics) */}
+        <div 
+          className="sm:hidden bg-white/95 backdrop-blur-md border-t border-[#EAE3DC] p-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] shrink-0 z-10"
+          style={{ paddingBottom: 'calc(0.6rem + env(safe-area-inset-bottom, 8px))' }}
+        >
+          <div className="flex items-center justify-between gap-2.5">
+            <div className="flex items-center border border-[#D5C2B8] rounded-xl bg-white overflow-hidden shadow-2xs shrink-0">
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                disabled={isOutOfStock}
+                className="w-9 h-11 flex items-center justify-center text-stone-700 active:bg-stone-100 disabled:opacity-40 text-base font-bold cursor-pointer"
+                aria-label="Disminuir cantidad"
+              >
+                -
+              </button>
+              <span className="w-8 text-center text-sm font-bold text-stone-900">
+                {quantity}
+              </span>
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => Math.min(product.stock || 99, q + 1))}
+                disabled={isOutOfStock || quantity >= product.stock}
+                className="w-9 h-11 flex items-center justify-center text-stone-700 active:bg-stone-100 disabled:opacity-40 text-base font-bold cursor-pointer"
+                aria-label="Aumentar cantidad"
+              >
+                +
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={isOutOfStock}
+              className="btn-cta-emil flex-1 h-11 px-4 bg-[#763D8B] hover:bg-[#602F72] disabled:bg-[#D5C2B8] text-white text-xs font-bold tracking-wider uppercase rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+            >
+              {isRental ? (
+                <>
+                  <Calendar className="w-4 h-4 text-[#F3E2C4]" />
+                  <span className="truncate">Reservar · ${(unitPrice * quantity).toFixed(2)}</span>
+                </>
+              ) : (
+                <>
+                  <Gift className="w-4 h-4 text-[#F3E2C4]" />
+                  <span className="truncate">Agregar · ${(unitPrice * quantity).toFixed(2)}</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

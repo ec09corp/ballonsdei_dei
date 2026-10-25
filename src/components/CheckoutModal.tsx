@@ -22,10 +22,19 @@ import {
   User,
   Phone,
   Mail,
-  Receipt
+  Receipt,
+  Zap,
+  Clock,
+  CalendarDays
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { StoreSettings, Order } from '../types/database';
+import { 
+  StoreSettings, 
+  Order, 
+  isProductReadyNow, 
+  isProductReservation, 
+  getProductMinDeliveryDays 
+} from '../types/database';
 import { orderService } from '../services/orderService';
 import { COLON_DISTRICTS, OrderExtraItem } from '../data/colonDelivery';
 import { extrasService } from '../services/extrasService';
@@ -45,11 +54,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 }) => {
   const { items, subtotal, clearCart } = useCart();
 
+  // Reservation items check & minimum preparation time calculation
+  const hasReservationItems = items.some((it) => isProductReservation(it.product));
+  const maxPrepDays = items.reduce((max, it) => {
+    return Math.max(max, getProductMinDeliveryDays(it.product));
+  }, hasReservationItems ? 3 : 0);
+
+  // Helper to generate ISO date string (YYYY-MM-DD)
+  const getMinDateIso = (daysOffset: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysOffset);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const minDate = getMinDateIso(hasReservationItems ? maxPrepDays : 0);
+
   // Contact fields
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [deliveryDate, setDeliveryDate] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState(minDate);
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
 
   // Delivery in Colón province
@@ -78,12 +105,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const receiptPrintRef = useRef<HTMLDivElement | null>(null);
 
-  // Load available extras when modal opens
+  // Load available extras when modal opens & sync minDate
   useEffect(() => {
     if (isOpen) {
       setAvailableExtras(extrasService.getExtras());
+      if (!deliveryDate || deliveryDate < minDate) {
+        setDeliveryDate(minDate);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, minDate]);
+
+  const formatSpanishDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const dateObj = new Date(y, m - 1, d);
+      return dateObj.toLocaleDateString('es-PA', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -162,6 +208,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
+    if (deliveryDate < minDate) {
+      setErrorMsg(`⚠️ Tu pedido incluye creaciones Por Reserva que requieren al menos ${maxPrepDays} días de anticipación. Por favor selecciona una fecha a partir del ${minDate}.`);
+      return;
+    }
+
     // MANDATORY RECEIPT VALIDATION: Block if no screenshot uploaded for Yappy or Transferencia!
     if ((paymentMethod === 'Yappy' || paymentMethod === 'Transferencia') && !receiptImage) {
       setErrorMsg(`⚠️ Es obligatorio subir la captura de pantalla del comprobante de pago (${paymentMethod === 'Yappy' ? 'Yappy' : 'Transferencia Bancaria'}) para confirmar y procesar el pedido.`);
@@ -225,13 +276,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       if (onOrderCompleted) {
         onOrderCompleted(order);
       }
-
-      const waUrl = getWhatsAppSummaryUrl(order, selectedExtras, receiptRef, !!receiptImage);
-      try {
-        window.open(waUrl, '_blank');
-      } catch (err) {
-        console.warn('Popup blocked, WhatsApp link available on screen:', err);
-      }
     } catch (err: any) {
       setErrorMsg(err.message || 'Error registrando el pedido. Intenta nuevamente.');
     } finally {
@@ -251,7 +295,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     const mainItems = (order.order_items || []).filter((it) => !it.product_name.startsWith('[Extra]'));
     const productList = mainItems
       .map((it) => {
-        let text = `• ${it.quantity}x ${it.product_name} — $${it.total_price.toFixed(2)}`;
+        let text = `• ${it.quantity}x ${it.product_name}`;
+        if (it.selected_variant && it.selected_variant !== 'standard' && it.selected_variant !== 'Estándar' && !it.selected_variant.startsWith('custom-')) {
+          text += ` [${it.selected_variant}]`;
+        }
+        text += ` — $${it.total_price.toFixed(2)}`;
         if (it.customization) {
           const c = it.customization;
           const details: string[] = [];
@@ -329,9 +377,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fade-in">
       <div 
-        className="relative w-full max-w-2xl bg-[#FAF8F5] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden my-0 sm:my-auto border-t sm:border border-[#E8DED7] flex flex-col max-h-[94vh] sm:max-h-[92vh] animate-modal-enter"
+        className="relative w-full max-w-2xl bg-[#FAF8F5] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden my-0 sm:my-auto border-t sm:border border-[#E8DED7] flex flex-col max-h-[94dvh] sm:max-h-[92vh] animate-bottom-sheet sm:animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Mobile Top Drag Indicator */}
+        <div className="sm:hidden pt-2.5 pb-1 bg-white flex justify-center">
+          <span className="w-12 h-1.5 bg-stone-300 rounded-full" />
+        </div>
+
         {/* Header */}
         <div className="p-4 sm:p-6 border-b border-[#EBE2DB] bg-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -424,6 +477,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           <div className="space-y-1 max-w-[340px]">
                             <p className="font-semibold text-[#2E2421]">
                               {it.quantity}x {it.product_name}
+                              {it.selected_variant && it.selected_variant !== 'standard' && it.selected_variant !== 'Estándar' && !it.selected_variant.startsWith('custom-') && (
+                                <span className="ml-1.5 text-[10px] font-bold text-[#763D8B] bg-[#FAF4F7] px-1.5 py-0.5 rounded border border-[#763D8B]/20 inline-block">
+                                  {it.selected_variant}
+                                </span>
+                              )}
                             </p>
                             {it.customization && (
                               <div className="text-[10px] text-[#6E5A69] bg-stone-50 p-1.5 rounded border border-stone-200 space-y-0.5">
@@ -583,19 +641,49 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {/* Order Items Snapshot */}
               <div className="p-4 bg-white rounded-xl border border-[#EDE5DF] space-y-3">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-[#6B5A52] flex items-center gap-1.5">
-                  <ShoppingCart className="w-3.5 h-3.5 text-[#763D8B]" />
-                  Resumen de Compra ({items.length} artículos)
-                </h4>
-                <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
-                  {items.map((it) => (
-                    <div key={it.product_id} className="flex justify-between text-xs text-[#423530]">
-                      <span className="truncate max-w-[260px]">
-                        {it.quantity}x {it.product_name}
-                      </span>
-                      <span className="font-medium">${it.total_price.toFixed(2)}</span>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[#6B5A52] flex items-center gap-1.5">
+                    <ShoppingCart className="w-3.5 h-3.5 text-[#763D8B]" />
+                    <span>Resumen de Compra ({items.length} artículos)</span>
+                  </h4>
+                  {hasReservationItems ? (
+                    <span className="text-[10px] font-semibold text-[#763D8B] bg-purple-50 border border-purple-200/80 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <CalendarDays className="w-3 h-3" />
+                      <span>Requiere Reserva (Mín. {maxPrepDays}d)</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-amber-900 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-amber-600 fill-amber-600" />
+                      <span>Listo Para Ya (Hoy mismo)</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1 divide-y divide-[#F5EFEB]">
+                  {items.map((it) => {
+                    const isReady = isProductReadyNow(it.product);
+                    return (
+                      <div key={it.product_id} className="pt-2 flex justify-between items-start text-xs text-[#423530]">
+                        <div className="min-w-0 pr-2">
+                          <span className="font-medium text-[#241A23] block truncate">
+                            {it.quantity}x {it.product_name}
+                          </span>
+                          <span className="inline-block mt-0.5 text-[9px]">
+                            {isReady ? (
+                              <span className="text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded font-semibold">
+                                ⚡ Para Ya (Tal cual en foto)
+                              </span>
+                            ) : (
+                              <span className="text-[#763D8B] bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-semibold">
+                                📅 Por Reserva (Personalizable)
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <span className="font-semibold text-[#241A23] shrink-0">${it.total_price.toFixed(2)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="pt-2 border-t border-[#F2ECE6] flex justify-between text-xs font-semibold text-[#2E2421]">
                   <span>Subtotal:</span>
@@ -614,31 +702,36 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <input
                       type="text"
                       required
+                      autoComplete="name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Ej. Sofía Valdés"
-                      className="w-full text-xs p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-[#241A23] focus:border-[#763D8B] focus:outline-none"
+                      className="w-full text-base sm:text-xs p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-[#241A23] focus:border-[#763D8B] focus:outline-none"
                     />
                   </div>
                   <div>
                     <label className="text-xs text-[#423530] block mb-1 font-medium">Teléfono / WhatsApp *</label>
                     <input
                       type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
                       required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="Ej. +507 6000-0000"
-                      className="w-full text-xs p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-[#241A23] focus:border-[#763D8B] focus:outline-none"
+                      className="w-full text-base sm:text-xs p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-[#241A23] focus:border-[#763D8B] focus:outline-none"
                     />
                   </div>
                   <div className="sm:col-span-2">
                     <label className="text-xs text-[#423530] block mb-1 font-medium">Correo Electrónico (Opcional)</label>
                     <input
                       type="email"
+                      inputMode="email"
+                      autoComplete="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="ejemplo@correo.com"
-                      className="w-full text-xs p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-[#241A23] focus:border-[#763D8B] focus:outline-none"
+                      className="w-full text-base sm:text-xs p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-[#241A23] focus:border-[#763D8B] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -689,15 +782,48 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </button>
                 </div>
 
+                {/* Clear Date Notice Banner */}
+                {hasReservationItems ? (
+                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#763D8B]">
+                      <CalendarDays className="w-4 h-4 shrink-0" />
+                      <span>📅 Pedido con Productos Por Reserva (Confección artesanal)</span>
+                    </div>
+                    <p className="text-[11px] text-[#423530] font-light leading-relaxed">
+                      Este pedido requiere un mínimo de <strong>{maxPrepDays} días de anticipación</strong> para la elaboración de tus arreglos.
+                      La fecha más próxima de entrega disponible es el <strong>{formatSpanishDate(minDate)}</strong> ({minDate}).
+                    </p>
+                    <p className="text-[10px] text-[#763D8B] font-semibold">
+                      ✨ Puedes elegir esa fecha o cualquier día posterior que prefieras para tu entrega o retiro.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
+                      <Zap className="w-4 h-4 text-amber-600 fill-amber-600 shrink-0" />
+                      <span>⚡ Pedido Para Ya (Hecho en boutique)</span>
+                    </div>
+                    <p className="text-[11px] text-[#423530] font-light leading-relaxed">
+                      Tus creaciones ya están hechas tal cual como en la foto. <strong>¡Puedes recibirlas hoy mismo en Colón</strong> o seleccionar la fecha de tu preferencia!
+                    </p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-[#423530] block mb-1 font-medium">Fecha Deseada *</label>
+                    <label className="text-xs text-[#423530] block mb-1 font-semibold flex items-center justify-between">
+                      <span>Fecha Deseada *</span>
+                      <span className="text-[10px] font-normal text-stone-500">
+                        {hasReservationItems ? `Mínimo: ${minDate}` : 'Desde hoy mismo'}
+                      </span>
+                    </label>
                     <input
                       type="date"
                       required
+                      min={minDate}
                       value={deliveryDate}
                       onChange={(e) => setDeliveryDate(e.target.value)}
-                      className="w-full text-xs p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-[#241A23] focus:border-[#763D8B] focus:outline-none"
+                      className="w-full text-xs p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-[#241A23] focus:border-[#763D8B] focus:outline-none font-medium"
                     />
                   </div>
 

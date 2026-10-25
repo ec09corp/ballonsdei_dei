@@ -2,7 +2,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Category } from '../types/database';
 import { INITIAL_CATEGORIES } from '../lib/mockData';
 
-const LOCAL_CATEGORIES_KEY = 'ballonsdei_categories_clean_zero';
+const LOCAL_CATEGORIES_KEY = 'balloonsdei_categories_clean_v4';
 
 function getLocalCategories(): Category[] {
   try {

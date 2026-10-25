@@ -253,10 +253,10 @@ export const Hero: React.FC<HeroProps> = ({ settings, onExplore, onOpenCustomize
               <Clock className="w-4 h-4 text-[#763D8B] shrink-0" />
               <div>
                 <span className="text-xs font-semibold text-[#241A23] tracking-wide uppercase block">
-                  Despacho en Hora VIP
+                  Entregas Programadas Puntuales
                 </span>
                 <span className="text-[11px] text-[#7A6B76] font-light">
-                  Entregas programadas en Ciudad de Colón
+                  Despachos coordinados en toda la Provincia de Colón
                 </span>
               </div>
             </div>

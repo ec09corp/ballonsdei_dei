@@ -154,12 +154,31 @@ export const AdminExtras: React.FC = () => {
       )}
 
       {/* Extras Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {extras.map((item) => (
-          <div
-            key={item.id}
-            className="p-4 bg-white rounded-xl border border-[#EDE5DF] shadow-2xs flex flex-col justify-between hover:border-[#D5C2B8] transition-all group"
+      {extras.length === 0 ? (
+        <div className="text-center py-12 px-4 bg-white rounded-xl border border-dashed border-[#D5C2B8]">
+          <div className="w-12 h-12 rounded-full bg-purple-50 text-[#763D8B] flex items-center justify-center mx-auto mb-3">
+            <Plus className="w-6 h-6" />
+          </div>
+          <h3 className="font-serif text-base font-semibold text-[#2E2421]">No hay chocolates ni complementos registrados</h3>
+          <p className="text-xs text-[#7A6B63] max-w-md mx-auto mt-1 mb-4">
+            La lista está limpia para que agregues tus propios chocolates, peluches y complementos personalizados.
+          </p>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#763D8B] hover:bg-[#602F72] text-white rounded-lg text-xs font-semibold uppercase tracking-wider shadow-sm transition-colors cursor-pointer"
           >
+            <Plus className="w-4 h-4" />
+            <span>Agregar Primer Chocolate o Extra</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {extras.map((item) => (
+            <div
+              key={item.id}
+              className="p-4 bg-white rounded-xl border border-[#EDE5DF] shadow-2xs flex flex-col justify-between hover:border-[#D5C2B8] transition-all group"
+            >
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#763D8B]/10 text-[#763D8B]">
@@ -224,7 +243,8 @@ export const AdminExtras: React.FC = () => {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
       {/* Edit/Create Modal */}
       {isModalOpen && (

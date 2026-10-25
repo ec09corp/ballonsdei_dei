@@ -1,7 +1,22 @@
 import React from 'react';
-import { X, Trash2, ArrowRight, ShoppingCart, Calendar, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { 
+  X, 
+  Trash2, 
+  ArrowRight, 
+  ShoppingCart, 
+  Calendar, 
+  SlidersHorizontal, 
+  Sparkles, 
+  Zap, 
+  CalendarDays 
+} from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { StoreSettings } from '../types/database';
+import { 
+  StoreSettings, 
+  isProductReadyNow, 
+  isProductReservation, 
+  getProductMinDeliveryDays 
+} from '../types/database';
 
 interface CartDrawerProps {
   settings: StoreSettings;
@@ -15,6 +30,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onCustomizeItem,
 }) => {
   const { items, isOpen, closeCart, removeItem, updateQuantity, subtotal, itemCount } = useCart();
+
+  const hasReservationItems = items.some((it) => isProductReservation(it.product));
+  const maxPrepDays = items.reduce((max, it) => {
+    return Math.max(max, getProductMinDeliveryDays(it.product));
+  }, hasReservationItems ? 3 : 0);
 
   if (!isOpen) return null;
 
@@ -92,11 +112,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[#763D8B] bg-[#763D8B]/10 px-1.5 py-0.5 rounded-sm uppercase tracking-wider mt-0.5">
                             🎨 Personalizado
                           </span>
-                        ) : !item.is_rental ? (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[#7D5B28] bg-[#F5EFE6] px-1.5 py-0.5 rounded-sm uppercase tracking-wider mt-0.5 border border-[#D4AF37]/30">
-                            ✦ Arreglo Original
+                        ) : isProductReadyNow(item.product) ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded-sm uppercase tracking-wider mt-0.5 border border-amber-200">
+                            ⚡ Para Ya (Tal cual en foto)
+                          </span>
+                        ) : isProductReservation(item.product) ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[#763D8B] bg-purple-50 px-1.5 py-0.5 rounded-sm uppercase tracking-wider mt-0.5 border border-purple-200">
+                            📅 Por Reserva (Personalizable)
                           </span>
                         ) : null}
+
+                        {item.selected_variant && item.selected_variant !== 'standard' && item.selected_variant !== 'Estándar' && !item.selected_variant.startsWith('custom-') && (
+                          <div className="text-[10px] font-bold text-[#763D8B] mt-1 bg-[#FAF4F7] px-2 py-0.5 rounded border border-[#763D8B]/20 inline-flex items-center gap-1">
+                            <span>Opción:</span>
+                            <span>{item.selected_variant}</span>
+                          </div>
+                        )}
                       </div>
 
                       <button
@@ -108,8 +139,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       </button>
                     </div>
 
-                    {/* Option to customize/modify this arrangement right from the cart */}
-                    {!item.is_rental && onCustomizeItem && (
+                    {/* Option to customize/modify this arrangement ONLY if it is a reservation product */}
+                    {!item.is_rental && isProductReservation(item.product) && onCustomizeItem && (
                       <button
                         type="button"
                         onClick={() => {
@@ -198,7 +229,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
         {/* Footer Checkout Summary */}
         {items.length > 0 && (
-          <div className="p-6 border-t border-[#EBE2DB] bg-white space-y-4">
+          <div 
+            className="p-5 sm:p-6 border-t border-[#EBE2DB] bg-white space-y-3.5 sm:space-y-4 shrink-0"
+            style={{ paddingBottom: 'calc(1.2rem + env(safe-area-inset-bottom, 0px))' }}
+          >
             <div className="space-y-1.5 text-xs text-[#6B5A52]">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
@@ -213,6 +247,25 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <span>${subtotal.toFixed(2)}</span>
               </div>
             </div>
+
+            {hasReservationItems ? (
+              <div className="p-3 bg-purple-50/90 border border-purple-200 rounded-xl space-y-1 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-[#763D8B]">
+                  <CalendarDays className="w-4 h-4 shrink-0" />
+                  <span>Incluye regalos Por Reserva</span>
+                </div>
+                <p className="text-[11px] text-[#423530] font-light leading-relaxed">
+                  Al completar tu pedido, la fecha mínima para recibirlo será con al menos <strong>{maxPrepDays} días de anticipación</strong>.
+                </p>
+              </div>
+            ) : (
+              <div className="p-2.5 bg-amber-50/80 border border-amber-200/70 rounded-xl text-xs flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-600 fill-amber-600 shrink-0" />
+                <span className="text-[11px] text-amber-950 font-medium">
+                  Artículos Para Ya: disponibles para hoy mismo en Colón.
+                </span>
+              </div>
+            )}
 
             <button
               onClick={() => {

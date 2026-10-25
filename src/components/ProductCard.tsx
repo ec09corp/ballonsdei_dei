@@ -1,6 +1,12 @@
 import React from 'react';
-import { Eye, ShoppingCart, Calendar, Sparkles } from 'lucide-react';
-import { Product } from '../types/database';
+import { Eye, ShoppingCart, Calendar, Sparkles, Zap, CalendarDays } from 'lucide-react';
+import { 
+  Product, 
+  isProductReadyNow, 
+  isProductReservation, 
+  getProductPriceRange, 
+  getProductVariants 
+} from '../types/database';
 import { useCart } from '../context/CartContext';
 
 interface ProductCardProps {
@@ -22,21 +28,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const isOutOfStock = product.stock <= 0 && !product.available_for_rental;
   const isRental = product.available_for_rental;
-  const isVariableGift = product.gift_type === 'variable';
-  const isFixedGift = product.gift_type === 'fixed';
+  const isReady = isProductReadyNow(product);
+  const isRes = isProductReservation(product);
+  
+  const priceRange = getProductPriceRange(product);
+  const variantsList = getProductVariants(product);
+  const hasMultipleOptions = variantsList.length > 1;
+
   const displayPrice = isRental && product.rental_price ? product.rental_price : product.price;
 
-  // Zero-Pill Discipline: Editorial status text instead of colored pill capsules
-  const getEditionLabel = () => {
-    if (isOutOfStock) return 'Pieza Agotada';
-    if (product.is_new) return 'Nueva Creación';
-    if (isRental) return 'Mobiliario VIP';
-    if (isVariableGift) return 'Personalizable a tu Gusto';
-    if (isFixedGift) return 'Diseño de Colección (Fijo)';
-    return null;
+  // Editorial status label
+  const getEditionBadge = () => {
+    if (isOutOfStock) return { text: 'Pieza Agotada', style: 'bg-stone-900/85 text-stone-200' };
+    if (isRental) return { text: 'Mobiliario para Eventos', style: 'bg-emerald-900/90 text-white' };
+    if (isReady) return { text: '⚡ Para Ya · Tal cual en foto', style: 'bg-amber-500/95 text-white shadow-xs' };
+    if (isRes) return { text: '📅 Por Reserva · Personalizable', style: 'bg-[#763D8B]/95 text-white shadow-xs' };
+    return { text: 'Diseño Original', style: 'bg-white/95 text-[#7D5B28] border border-[#C5A059]/40' };
   };
 
-  const editionLabel = getEditionLabel();
+  const badge = getEditionBadge();
 
   return (
     <article 
@@ -52,17 +62,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           loading="lazy"
         />
 
-        {/* Zero-Pill Editorial Status Tag: Clean unboxed typography with WCAG AA contrast */}
-        {editionLabel && (
+        {/* Status Tag */}
+        {badge && (
           <div className="absolute top-3.5 left-3.5 pointer-events-none">
-            <span className={`text-[10px] font-semibold tracking-[0.16em] uppercase px-2.5 py-1 rounded-sm backdrop-blur-md transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-              isOutOfStock 
-                ? 'bg-stone-900/85 text-stone-200' 
-                : isVariableGift
-                ? 'bg-[#763D8B]/95 text-white shadow-xs'
-                : 'bg-white/95 text-[#7D5B28] border border-[#C5A059]/40'
-            }`}>
-              {editionLabel}
+            <span className={`text-[10px] font-semibold tracking-[0.1em] uppercase px-2.5 py-1 rounded-sm backdrop-blur-md shadow-xs ${badge.style}`}>
+              {badge.text}
             </span>
           </div>
         )}
@@ -86,23 +90,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       {/* Info Content: Pure Editorial Typography */}
       <div className="p-3 sm:p-5 flex-1 flex flex-col justify-between">
         <div>
-          {/* Metadata clean text with bullet separators (Zero-Pill Rule + WCAG AA contrast #6E5A69) */}
+          {/* Metadata clean text with bullet separators */}
           <div className="flex items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] text-[#6E5A69] uppercase tracking-[0.16em] mb-1 font-medium truncate">
             <span>
               {isRental 
                 ? 'Alquiler Eventos' 
-                : isVariableGift
-                ? 'Personalizable'
-                : isFixedGift
-                ? 'Colección'
-                : 'Floristería'}
+                : isReady
+                ? 'Entrega Inmediata'
+                : 'Reserva con tiempo'}
             </span>
-            {product.size && (
+            <span className="text-[#7D5B28]" aria-hidden="true">·</span>
+            <span>
+              {isReady ? 'Tal cual en foto' : 'Personalizable'}
+            </span>
+            {hasMultipleOptions ? (
+              <>
+                <span className="text-[#763D8B]" aria-hidden="true">·</span>
+                <span className="text-[#763D8B] font-semibold">{variantsList.length} opciones</span>
+              </>
+            ) : product.size ? (
               <>
                 <span className="text-[#7D5B28]" aria-hidden="true">·</span>
                 <span>{product.size}</span>
               </>
-            )}
+            ) : null}
           </div>
 
           <h3 className="font-serif text-sm sm:text-lg text-[#241A23] font-normal leading-snug line-clamp-2 group-hover:text-[#763D8B] transition-colors duration-160 ease-[cubic-bezier(0.23,1,0.32,1)]">
@@ -113,9 +124,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {/* Price & Action Strip */}
         <div className="mt-2.5 sm:mt-3.5 pt-2.5 sm:pt-3 border-t border-[#F2ECE6] flex items-center justify-between gap-1.5">
           <div className="flex items-baseline gap-1 min-w-0">
-            <span className="font-serif text-lg sm:text-2xl font-light text-[#241A23] truncate">
-              ${displayPrice.toFixed(2)}
-            </span>
+            {hasMultipleOptions ? (
+              <div className="flex items-baseline gap-1">
+                <span className="text-[10px] sm:text-xs text-[#763D8B] font-medium">Desde</span>
+                <span className="font-serif text-lg sm:text-2xl font-light text-[#241A23] truncate">
+                  ${priceRange.min.toFixed(2)}
+                </span>
+              </div>
+            ) : (
+              <span className="font-serif text-lg sm:text-2xl font-light text-[#241A23] truncate">
+                ${displayPrice.toFixed(2)}
+              </span>
+            )}
             {isRental && (
               <span className="text-[9px] sm:text-[10px] text-[#6E5A69] font-light uppercase tracking-wider shrink-0">/ día</span>
             )}
@@ -140,6 +160,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </button>
             ) : isOutOfStock ? (
               <span className="text-[10px] sm:text-xs text-[#8C3A3A] font-medium tracking-wide shrink-0">Agotado</span>
+            ) : hasMultipleOptions ? (
+              <button
+                type="button"
+                onClick={() => onViewProduct(product)}
+                aria-label={`Ver opciones de ${product.name}`}
+                className="btn-spring-action text-[11px] sm:text-xs font-semibold text-white bg-[#763D8B] hover:bg-[#602F72] shadow-xs hover:shadow-md hover:shadow-[#763D8B]/20 px-2.5 sm:px-3 py-1.5 rounded-full flex items-center gap-1 cursor-pointer shrink-0"
+                title="Elegir opción o tamaño"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-white" />
+                <span>Opciones</span>
+              </button>
             ) : (
               <button
                 type="button"

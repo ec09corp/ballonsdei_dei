@@ -2,14 +2,17 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { StoreSettings } from '../types/database';
 import { INITIAL_SETTINGS } from '../lib/mockData';
 
-const LOCAL_SETTINGS_KEY = 'ballonsdei_settings_cache';
+const LOCAL_SETTINGS_KEY = 'balloonsdei_settings_cache_v3';
 
 function getLocalSettings(): StoreSettings {
   try {
     const raw = localStorage.getItem(LOCAL_SETTINGS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      // Auto-upgrade if using old svg placeholder or old uppercase name
+      // Auto-upgrade name to BALLOONSDEI
+      if (!parsed.store_name || parsed.store_name.toLowerCase().includes('ballon')) {
+        parsed.store_name = 'BALLOONSDEI';
+      }
       if (parsed.logo_url === '/logo/logo.svg') {
         parsed.logo_url = '/logo/logo.jpg';
       }
@@ -26,7 +29,7 @@ function getLocalSettings(): StoreSettings {
         parsed.google_maps_url.includes('3kyhrTZrjEUyy8e9') ||
         parsed.google_maps_url.includes('3kyhrTZrj')
       ) {
-        parsed.google_maps_url = 'https://www.google.com/maps/search/?api=1&query=Ballonsdei+Colon+Panama';
+        parsed.google_maps_url = 'https://www.google.com/maps/search/?api=1&query=BALLOONSDEI+Colon+Panama';
       }
       return {
         ...INITIAL_SETTINGS,

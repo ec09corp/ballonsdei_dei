@@ -2,7 +2,7 @@ import { supabase, isSupabaseConfigured, uploadProductImage } from '../lib/supab
 import { Product, ProductImage } from '../types/database';
 import { INITIAL_PRODUCTS } from '../lib/mockData';
 
-const LOCAL_PRODUCTS_KEY = 'ballonsdei_products_clean_zero';
+const LOCAL_PRODUCTS_KEY = 'balloonsdei_products_clean_v4';
 
 function getLocalProducts(): Product[] {
   try {
@@ -20,6 +20,19 @@ function saveLocalProducts(products: Product[]) {
   } catch (e) {
     console.error('Error saving local products:', e);
   }
+}
+
+export function generateUuid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID();
+    } catch {}
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 export const productService = {
@@ -61,8 +74,15 @@ export const productService = {
             const sortedImages = (p.images || []).sort(
               (a: ProductImage, b: ProductImage) => (a.position || 1) - (b.position || 1)
             );
+            const metadata = p.metadata || {};
+            const availType = p.availability_type || metadata.availability_type || (p.gift_type === 'variable' ? 'reservation' : 'ready_now');
+            const prepDays = p.preparation_days ?? metadata.preparation_days ?? (availType === 'reservation' ? 3 : 0);
+            const variants = p.variants || metadata.variants || [];
             return {
               ...p,
+              variants,
+              availability_type: availType,
+              preparation_days: prepDays,
               images: sortedImages,
             };
           });
@@ -170,7 +190,7 @@ export const productService = {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-    const newId = `prod-${Date.now()}`;
+    const newId = generateUuid();
     let createdProductInDb: Product | null = null;
     let dbError: Error | null = null;
 
@@ -224,6 +244,13 @@ export const productService = {
           size: productData.size || null,
           color: productData.color || null,
           tags: productData.tags || null,
+          variants: productData.variants || [],
+          metadata: {
+            ...(productData.metadata || {}),
+            variants: productData.variants || [],
+            availability_type: productData.availability_type || (productData.gift_type === 'variable' ? 'reservation' : 'ready_now'),
+            preparation_days: productData.preparation_days ?? (productData.availability_type === 'reservation' ? 3 : 0),
+          },
         };
 
         const { data: insertedProduct, error: prodError } = await supabase
@@ -237,6 +264,25 @@ export const productService = {
           dbError = new Error(prodError.message || 'Error guardando en Supabase');
         } else if (insertedProduct) {
           const productId = insertedProduct.id;
+
+          // Attempt to insert variants into product_variants table if provided
+          if (productData.variants && productData.variants.length > 0) {
+            try {
+              const variantRows = productData.variants.map((v) => ({
+                id: generateUuid(),
+                product_id: productId,
+                name: v.name,
+                price: Number(v.price) || 0,
+                sku: v.sku || null,
+                stock: v.stock ?? 10,
+                is_default: Boolean(v.is_default),
+              }));
+              await supabase.from('product_variants').insert(variantRows);
+            } catch (vErr) {
+              console.warn('Could not insert product_variants table (using JSONB column/metadata):', vErr);
+            }
+          }
+
           const uploadedImages: ProductImage[] = [];
 
           // Process and upload up to 4 images
@@ -316,6 +362,8 @@ export const productService = {
       category_id: productData.category_id || 'cat-flores',
       product_type: productData.product_type || 'product',
       gift_type: productData.gift_type || 'none',
+      availability_type: productData.availability_type || (productData.gift_type === 'variable' ? 'reservation' : 'ready_now'),
+      preparation_days: productData.preparation_days ?? (productData.availability_type === 'reservation' ? 3 : 0),
       stock: Number(productData.stock) || 0,
       minimum_stock: Number(productData.minimum_stock) || 2,
       active: productData.active ?? true,
@@ -328,6 +376,13 @@ export const productService = {
       size: productData.size || null,
       color: productData.color || null,
       tags: productData.tags || null,
+      variants: productData.variants || [],
+      metadata: {
+        ...(productData.metadata || {}),
+        variants: productData.variants || [],
+        availability_type: productData.availability_type || (productData.gift_type === 'variable' ? 'reservation' : 'ready_now'),
+        preparation_days: productData.preparation_days ?? (productData.availability_type === 'reservation' ? 3 : 0),
+      },
       images: processedImages,
     };
 
@@ -352,36 +407,68 @@ export const productService = {
 
     if (supabase && isSupabaseConfigured) {
       try {
+        const updatePayload: any = {
+          name: productData.name,
+          description: productData.description,
+          price: Number(productData.price),
+          previous_price: productData.previous_price ? Number(productData.previous_price) : null,
+          sku: productData.sku,
+          category_id: cleanCatId,
+          product_type: productData.product_type,
+          gift_type: productData.gift_type,
+          stock: Number(productData.stock),
+          minimum_stock: Number(productData.minimum_stock),
+          active: productData.active,
+          featured: productData.featured,
+          is_new: productData.is_new,
+          available_for_rental: productData.available_for_rental,
+          rental_price: productData.rental_price ? Number(productData.rental_price) : null,
+          rental_deposit: productData.rental_deposit ? Number(productData.rental_deposit) : null,
+          rental_conditions: productData.rental_conditions,
+          size: productData.size,
+          color: productData.color,
+          tags: productData.tags,
+          variants: productData.variants || [],
+          metadata: {
+            ...(productData.metadata || {}),
+            variants: productData.variants || [],
+            availability_type: productData.availability_type,
+            preparation_days: productData.preparation_days,
+          },
+        };
+
         const { error: prodError } = await supabase
           .from('products')
-          .update({
-            name: productData.name,
-            description: productData.description,
-            price: Number(productData.price),
-            previous_price: productData.previous_price ? Number(productData.previous_price) : null,
-            sku: productData.sku,
-            category_id: cleanCatId,
-            product_type: productData.product_type,
-            gift_type: productData.gift_type,
-            stock: Number(productData.stock),
-            minimum_stock: Number(productData.minimum_stock),
-            active: productData.active,
-            featured: productData.featured,
-            is_new: productData.is_new,
-            available_for_rental: productData.available_for_rental,
-            rental_price: productData.rental_price ? Number(productData.rental_price) : null,
-            rental_deposit: productData.rental_deposit ? Number(productData.rental_deposit) : null,
-            rental_conditions: productData.rental_conditions,
-            size: productData.size,
-            color: productData.color,
-            tags: productData.tags,
-          })
+          .update(updatePayload)
           .eq('id', id);
 
         if (prodError) {
           console.warn('Supabase update notice:', prodError.message);
           dbError = new Error(prodError.message);
-        } else if (imageFiles && imageFiles.length > 0) {
+        } else {
+          // Sync variants table if available
+          if (productData.variants) {
+            try {
+              await supabase.from('product_variants').delete().eq('product_id', id);
+              if (productData.variants.length > 0) {
+                const variantRows = productData.variants.map((v) => ({
+                  id: generateUuid(),
+                  product_id: id,
+                  name: v.name,
+                  price: Number(v.price) || 0,
+                  sku: v.sku || null,
+                  stock: v.stock ?? 10,
+                  is_default: Boolean(v.is_default),
+                }));
+                await supabase.from('product_variants').insert(variantRows);
+              }
+            } catch (vErr) {
+              console.warn('Could not sync product_variants table:', vErr);
+            }
+          }
+        }
+
+        if (imageFiles && imageFiles.length > 0) {
           // Remove old images
           await supabase.from('product_images').delete().eq('product_id', id);
 
@@ -424,6 +511,9 @@ export const productService = {
           ...p,
           ...productData,
           category_id: cleanCatId || p.category_id,
+          variants: productData.variants !== undefined ? productData.variants : p.variants,
+          availability_type: productData.availability_type || p.availability_type,
+          preparation_days: productData.preparation_days !== undefined ? productData.preparation_days : p.preparation_days,
           images: updatedImages,
         };
       }

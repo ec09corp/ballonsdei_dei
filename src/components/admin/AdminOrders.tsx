@@ -15,7 +15,9 @@ import {
   Trash2,
   ExternalLink,
   MessageCircle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ZoomIn,
+  Download
 } from 'lucide-react';
 import { Order, OrderStatus } from '../../types/database';
 import { orderService } from '../../services/orderService';
@@ -29,6 +31,7 @@ export const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onRefreshOrder
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [previewReceiptImage, setPreviewReceiptImage] = useState<{ url: string; orderNumber: string } | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
@@ -180,9 +183,14 @@ export const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onRefreshOrder
                       {ord.delivery_date || 'Sin fecha'}
                     </span>
                     {ord.receipt_url && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-50 text-[#763D8B] text-[9px] font-semibold rounded mt-0.5 block border border-purple-200">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewReceiptImage({ url: ord.receipt_url!, orderNumber: ord.order_number })}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-50 hover:bg-purple-100 text-[#763D8B] text-[9px] font-semibold rounded mt-0.5 block border border-purple-200 cursor-pointer"
+                        title="Ver captura de comprobante"
+                      >
                         📸 Comprobante
-                      </span>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -209,14 +217,14 @@ export const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onRefreshOrder
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setSelectedOrder(ord)}
-                      className="p-1.5 text-[#8D5844] bg-[#FAF8F5] hover:bg-[#F2ECE6] border border-[#E3D7CE] rounded-lg transition-colors"
+                      className="p-1.5 text-[#8D5844] bg-[#FAF8F5] hover:bg-[#F2ECE6] border border-[#E3D7CE] rounded-lg transition-colors cursor-pointer"
                       title="Ver detalle del pedido"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDeleteOrder(ord.id, ord.order_number)}
-                      className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors"
+                      className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer"
                       title="Eliminar pedido"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -277,7 +285,7 @@ export const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onRefreshOrder
                       {ord.receipt_url ? (
                         <button
                           type="button"
-                          onClick={() => setSelectedOrder(ord)}
+                          onClick={() => setPreviewReceiptImage({ url: ord.receipt_url!, orderNumber: ord.order_number })}
                           className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-[#763D8B] rounded text-[11px] font-semibold transition-colors cursor-pointer"
                           title="Ver captura de comprobante"
                         >
@@ -402,23 +410,41 @@ export const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onRefreshOrder
                     </div>
                     {selectedOrder.receipt_url && (
                       <div className="space-y-2">
-                        <div className="rounded-xl overflow-hidden border border-[#D5C2B8] max-h-64 bg-black/5 flex items-center justify-center p-2">
+                        <div 
+                          onClick={() => setPreviewReceiptImage({ url: selectedOrder.receipt_url!, orderNumber: selectedOrder.order_number })}
+                          className="rounded-xl overflow-hidden border border-[#D5C2B8] max-h-64 bg-black/5 flex items-center justify-center p-2 cursor-pointer group relative"
+                          title="Clic para ampliar comprobante"
+                        >
                           <img
                             src={selectedOrder.receipt_url}
                             alt={`Comprobante ${selectedOrder.payment_method}`}
-                            className="max-h-60 w-auto object-contain rounded shadow-xs"
+                            className="max-h-60 w-auto object-contain rounded shadow-xs group-hover:scale-102 transition-transform"
                           />
+                          <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-semibold backdrop-blur-2xs rounded-xl">
+                            <ZoomIn className="w-4 h-4" />
+                            <span>Clic para ampliar</span>
+                          </div>
                         </div>
                         <div className="flex items-center justify-between text-[11px]">
-                          <a
-                            href={selectedOrder.receipt_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[#763D8B] hover:underline font-semibold"
+                          <button
+                            type="button"
+                            onClick={() => setPreviewReceiptImage({ url: selectedOrder.receipt_url!, orderNumber: selectedOrder.order_number })}
+                            className="inline-flex items-center gap-1 text-[#763D8B] hover:underline font-semibold cursor-pointer"
                           >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            <span>Abrir captura en tamaño completo</span>
-                          </a>
+                            <ZoomIn className="w-3.5 h-3.5" />
+                            <span>Ver captura en pantalla completa</span>
+                          </button>
+                          {selectedOrder.receipt_url.startsWith('http') && (
+                            <a
+                              href={selectedOrder.receipt_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[#7A6B63] hover:underline"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span>Enlace Storage</span>
+                            </a>
+                          )}
                         </div>
                       </div>
                     )}
@@ -495,6 +521,65 @@ export const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onRefreshOrder
                   ))}
                 </select>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox for Admin Fullscreen Receipt Inspection */}
+      {previewReceiptImage && (
+        <div 
+          className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPreviewReceiptImage(null)}
+        >
+          <div 
+            className="relative max-w-3xl w-full max-h-[92vh] bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col animate-modal-enter"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-[#EBE2DB] flex items-center justify-between bg-[#FAF8F5]">
+              <span className="font-semibold text-sm text-[#2E2421] flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-[#763D8B]" />
+                Comprobante de Pago — Pedido #{previewReceiptImage.orderNumber}
+              </span>
+              <button 
+                type="button"
+                onClick={() => setPreviewReceiptImage(null)} 
+                className="p-1 rounded-full text-stone-500 hover:text-stone-800 hover:bg-stone-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-3 overflow-auto flex items-center justify-center bg-black/5 max-h-[75vh]">
+              <img 
+                src={previewReceiptImage.url} 
+                alt="Comprobante en grande" 
+                className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-sm"
+              />
+            </div>
+            <div className="p-3 border-t border-[#EBE2DB] bg-[#FAF8F5] flex items-center justify-between">
+              {previewReceiptImage.url.startsWith('http') ? (
+                <a
+                  href={previewReceiptImage.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-[#763D8B] font-semibold hover:underline"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Abrir enlace en la nube (Storage)</span>
+                </a>
+              ) : (
+                <span className="text-[11px] text-[#7A6B63]">Captura guardada en el pedido</span>
+              )}
+              <a
+                href={previewReceiptImage.url}
+                download={`comprobante-pedido-${previewReceiptImage.orderNumber}.jpg`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 bg-[#763D8B] hover:bg-[#602F72] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Descargar Captura</span>
+              </a>
             </div>
           </div>
         </div>

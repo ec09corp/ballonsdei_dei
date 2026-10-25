@@ -325,3 +325,63 @@ button:not(:disabled):active,
   background: #BFAEA4;
 }
 
+/* ==========================================================================
+   Mobile-First (Android & iOS) Native Ergonomics & Safe Area Support
+   ========================================================================== */
+
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+/* Prevent unwanted double-tap zoom delay on mobile touch targets */
+button, a, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
+}
+
+/* CRITICAL iOS Safari Anti-Zoom Fix: inputs under 16px cause iOS to auto-zoom the page */
+@media screen and (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Safe area padding utilities */
+.safe-top {
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+}
+
+.safe-bottom {
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}
+
+.pb-safe-nav {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Mobile Bottom Sheet Smooth Slide Up Animation */
+@keyframes sheet-slide-up {
+  0% {
+    transform: translateY(100%);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-bottom-sheet {
+  animation: sheet-slide-up 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Smooth inertia scrolling on iOS Safari */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+}
+
+

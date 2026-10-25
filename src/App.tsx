@@ -28,6 +28,7 @@ import { AdminCustomizerElements } from './components/admin/AdminCustomizerEleme
 import { AdminExtras } from './components/admin/AdminExtras';
 import { ArrangementCustomizerModal } from './components/customizer/ArrangementCustomizerModal';
 import { MobileBallonsdeiAtmosphere } from './components/MobileBallonsdeiAtmosphere';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
 
 // Services & Data
 import { productService } from './services/productService';
@@ -35,7 +36,15 @@ import { categoryService } from './services/categoryService';
 import { orderService } from './services/orderService';
 import { productionService } from './services/productionService';
 import { settingsService } from './services/settingsService';
-import { Product, Category, Order, ProductionItem, StoreSettings } from './types/database';
+import { 
+  Product, 
+  Category, 
+  Order, 
+  ProductionItem, 
+  StoreSettings, 
+  isProductReadyNow, 
+  isProductReservation 
+} from './types/database';
 import { INITIAL_SETTINGS } from './lib/mockData';
 import { Gift, SlidersHorizontal, Sparkles } from 'lucide-react';
 
@@ -160,11 +169,11 @@ function MainApp() {
   const displayProducts = products.filter((p) => {
     if (!p.active) return false;
     if (activeCategoryFilter === 'all') return true;
-    if (activeCategoryFilter === 'regalos-fijos') {
-      return p.gift_type === 'fixed';
+    if (activeCategoryFilter === 'para-ya' || activeCategoryFilter === 'regalos-fijos') {
+      return isProductReadyNow(p);
     }
-    if (activeCategoryFilter === 'personalizables' || activeCategoryFilter === 'regalos-variables') {
-      return p.gift_type === 'variable';
+    if (activeCategoryFilter === 'por-reserva' || activeCategoryFilter === 'personalizables' || activeCategoryFilter === 'regalos-variables') {
+      return isProductReservation(p);
     }
     return (
       p.category?.slug === activeCategoryFilter ||
@@ -270,6 +279,9 @@ function MainApp() {
         onNavigateToCatalog={() => handleNavigate('catalogo', 'all')}
       />
 
+      {/* PWA Install Banner & iOS Safari Add to Home Screen Modal */}
+      <PWAInstallBanner />
+
       {/* Header with glassmorphism */}
       <Header
         settings={settings}
@@ -325,14 +337,25 @@ function MainApp() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveCategoryFilter('regalos-fijos')}
+              onClick={() => setActiveCategoryFilter('para-ya')}
               className={`chip-spring px-4 py-2 rounded-full whitespace-nowrap font-medium cursor-pointer flex items-center gap-1.5 ${
-                activeCategoryFilter === 'regalos-fijos'
-                  ? 'bg-[#763D8B] text-white shadow-sm border border-[#763D8B]'
+                activeCategoryFilter === 'para-ya'
+                  ? 'bg-amber-600 text-white shadow-sm border border-amber-600 font-semibold'
+                  : 'bg-white text-stone-700 hover:bg-amber-50 border border-amber-200'
+              }`}
+            >
+              <span>⚡ Para Ya (Inmediatos)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCategoryFilter('por-reserva')}
+              className={`chip-spring px-4 py-2 rounded-full whitespace-nowrap font-medium cursor-pointer flex items-center gap-1.5 ${
+                activeCategoryFilter === 'por-reserva'
+                  ? 'bg-[#763D8B] text-white shadow-sm border border-[#763D8B] font-semibold'
                   : 'bg-white text-stone-700 hover:bg-[#FAF4F7] border border-[#E4D7E0]'
               }`}
             >
-              <span>💎 Diseños de Colección</span>
+              <span>📅 Por Reserva (Personalizables)</span>
             </button>
             {categories
               .filter((c) => c.active && c.slug !== 'regalos-fijos' && c.slug !== 'personalizables')
