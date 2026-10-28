@@ -12,6 +12,7 @@ import { SearchModal } from './components/SearchModal';
 import { LocationSection } from './components/LocationSection';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
+import { CategoriesSection } from './components/CategoriesSection';
 
 // Admin Components
 import { AdminLogin } from './components/admin/AdminLogin';
@@ -108,18 +109,29 @@ function MainApp() {
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-      const [fetchedSettings, fetchedCats, fetchedProds, fetchedOrders, fetchedProdItems] =
+      const fetchedCats = await categoryService.getCategories();
+      setCategories(fetchedCats);
+
+      const [fetchedSettings, fetchedProds, fetchedOrders, fetchedProdItems] =
         await Promise.all([
           settingsService.getSettings(),
-          categoryService.getCategories(),
           productService.getProducts({ activeOnly: false }),
           orderService.getOrders(),
           productionService.getItems(),
         ]);
 
       setSettings(fetchedSettings);
-      setCategories(fetchedCats);
-      setProducts(fetchedProds);
+
+      // Populate category relation for every product so category views match reliably
+      const enrichedProds = fetchedProds.map((p) => {
+        const cat = fetchedCats.find((c) => c.id === p.category_id || c.slug === p.category_id);
+        return {
+          ...p,
+          category: p.category || cat,
+        };
+      });
+
+      setProducts(enrichedProds);
       setOrders(fetchedOrders);
       setProductionItems(fetchedProdItems);
     } catch (err) {
@@ -131,6 +143,13 @@ function MainApp() {
 
   useEffect(() => {
     loadAllData();
+
+    // Listen to real-time local updates dispatched from admin
+    const handleDataUpdate = () => {
+      loadAllData();
+    };
+    window.addEventListener('balloonsdei_data_updated', handleDataUpdate);
+    return () => window.removeEventListener('balloonsdei_data_updated', handleDataUpdate);
   }, []);
 
   const handleNavigate = (sectionId: string, categorySlug?: string) => {
@@ -163,6 +182,7 @@ function MainApp() {
   const handleExitAdmin = () => {
     window.location.hash = '';
     setIsAdminView(false);
+    loadAllData(); // Always refresh latest products and categories when returning to storefront
   };
 
   // Filter storefront products
@@ -175,11 +195,15 @@ function MainApp() {
     if (activeCategoryFilter === 'por-reserva' || activeCategoryFilter === 'personalizables' || activeCategoryFilter === 'regalos-variables') {
       return isProductReservation(p);
     }
+    const cat = categories.find((c) => c.id === p.category_id || c.slug === p.category_id);
     return (
       p.category?.slug === activeCategoryFilter ||
+      cat?.slug === activeCategoryFilter ||
       p.category_id === activeCategoryFilter ||
       p.category_id === `cat-${activeCategoryFilter}` ||
-      p.tags?.includes(activeCategoryFilter)
+      (Array.isArray(p.tags)
+        ? p.tags.includes(activeCategoryFilter)
+        : p.tags && String(p.tags).toLowerCase().includes(activeCategoryFilter.toLowerCase()))
     );
   });
 
@@ -303,6 +327,13 @@ function MainApp() {
       {/* Infinite Luxury Silk Marquee */}
       <LuxuryMarquee />
 
+      {/* Visual Collections Showcase by Category (Images from Gallery) */}
+      <CategoriesSection
+        categories={categories.filter((c) => c.active)}
+        selectedCategory={activeCategoryFilter}
+        onSelectCategory={(slug) => handleNavigate('catalogo', slug)}
+      />
+
       {/* Main Catalog - Haute Floristerie Showcase */}
       <main id="catalogo" className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full py-8 sm:py-16">
         {/* Rolex-Style Category Header */}
@@ -366,18 +397,28 @@ function MainApp() {
                     type="button"
                     key={cat.id}
                     onClick={() => setActiveCategoryFilter(cat.slug)}
-                    className={`chip-spring px-4 py-2 rounded-full whitespace-nowrap font-medium cursor-pointer ${
+                    className={`chip-spring px-4 py-2 rounded-full whitespace-nowrap font-medium cursor-pointer flex items-center gap-1.5 ${
                       isCurrent
                         ? 'bg-[#763D8B] text-white shadow-sm border border-[#763D8B]'
                         : 'bg-white text-stone-700 hover:bg-[#FAF4F7] border border-[#E4D7E0]'
                     }`}
                   >
-                    {cat.name}
+                    {cat.image_url ? (
+                      <img
+                        src={cat.image_url}
+                        alt=""
+                        className="w-4 h-4 rounded-full object-cover shrink-0 border border-white/40"
+                      />
+                    ) : (
+                      <span>🌸</span>
+                    )}
+                    <span>{cat.name}</span>
                   </button>
                 );
               })}
           </div>
         </div>
+
 
         {/* Product Grid - Mobile Optimized Gaps */}
         {isLoading ? (

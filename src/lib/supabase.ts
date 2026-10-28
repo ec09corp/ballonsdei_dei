@@ -379,6 +379,9 @@ CREATE TABLE IF NOT EXISTS public.products (
     category_id TEXT,
     product_type TEXT DEFAULT 'product',
     gift_type TEXT DEFAULT 'none',
+    availability_type TEXT DEFAULT 'ready_now',
+    preparation_days INTEGER DEFAULT 0,
+    variants JSONB DEFAULT '[]'::jsonb,
     stock INTEGER DEFAULT 0,
     minimum_stock INTEGER DEFAULT 2,
     active BOOLEAN DEFAULT true,
@@ -394,6 +397,7 @@ CREATE TABLE IF NOT EXISTS public.products (
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
 
 -- 3. Tabla de Imágenes de Productos (Hasta 4 fotos por producto)
 CREATE TABLE IF NOT EXISTS public.product_images (
@@ -593,6 +597,7 @@ ALTER TABLE IF EXISTS public.custom_designs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.production_items DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.production_movements DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.product_production_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.product_variants DISABLE ROW LEVEL SECURITY;
 
 -- Otorgar permisos globales al esquema public a los roles de Supabase
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
@@ -652,6 +657,8 @@ ALTER TABLE IF EXISTS public.custom_designs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.production_items DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.production_movements DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.product_production_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.product_variants DISABLE ROW LEVEL SECURITY;
 `;
+
 }
 

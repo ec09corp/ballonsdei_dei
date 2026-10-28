@@ -14,13 +14,21 @@ function getLocalProducts(): Product[] {
   return [];
 }
 
+function notifyDataUpdate() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('balloonsdei_data_updated'));
+  }
+}
+
 function saveLocalProducts(products: Product[]) {
   try {
     localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(products));
+    notifyDataUpdate();
   } catch (e) {
     console.error('Error saving local products:', e);
   }
 }
+
 
 export function generateUuid(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -45,7 +53,10 @@ export const productService = {
   }): Promise<Product[]> {
     if (supabase && isSupabaseConfigured) {
       try {
-        let query = supabase
+        let rawData: any[] | null = null;
+
+        // Try primary query with embedded images and categories
+        let primaryQuery = supabase
           .from('products')
           .select(`
             *,
@@ -55,22 +66,48 @@ export const productService = {
           .order('created_at', { ascending: false });
 
         if (params?.activeOnly !== false) {
-          query = query.eq('active', true);
+          primaryQuery = primaryQuery.eq('active', true);
         }
-
         if (params?.giftType) {
-          query = query.eq('gift_type', params.giftType);
+          primaryQuery = primaryQuery.eq('gift_type', params.giftType);
         }
-
         if (params?.isRental) {
-          query = query.eq('available_for_rental', true);
+          primaryQuery = primaryQuery.eq('available_for_rental', true);
         }
 
-        const { data, error } = await query;
+        const { data: primaryData, error: primaryError } = await primaryQuery;
 
-        if (!error && data) {
+        if (!primaryError && primaryData) {
+          rawData = primaryData;
+        } else {
+          // Fallback query without embedded category (in case of missing PostgREST foreign key relationship)
+          let fallbackQuery = supabase
+            .from('products')
+            .select(`
+              *,
+              images:product_images(*)
+            `)
+            .order('created_at', { ascending: false });
+
+          if (params?.activeOnly !== false) {
+            fallbackQuery = fallbackQuery.eq('active', true);
+          }
+          if (params?.giftType) {
+            fallbackQuery = fallbackQuery.eq('gift_type', params.giftType);
+          }
+          if (params?.isRental) {
+            fallbackQuery = fallbackQuery.eq('available_for_rental', true);
+          }
+
+          const { data: fallbackData } = await fallbackQuery;
+          if (fallbackData) {
+            rawData = fallbackData;
+          }
+        }
+
+        if (rawData) {
           // Sort images by position 1..4
-          let products = (data as any[]).map((p) => {
+          let products = rawData.map((p) => {
             const sortedImages = (p.images || []).sort(
               (a: ProductImage, b: ProductImage) => (a.position || 1) - (b.position || 1)
             );
@@ -117,6 +154,7 @@ export const productService = {
         console.warn('Supabase query failed, using local product catalog:', err);
       }
     }
+
 
     // Fallback to local catalog
     let list = getLocalProducts();
@@ -253,11 +291,30 @@ export const productService = {
           },
         };
 
-        const { data: insertedProduct, error: prodError } = await supabase
+        let { data: insertedProduct, error: prodError } = await supabase
           .from('products')
           .insert(insertPayload)
           .select()
-          .single();
+          .maybeSingle();
+
+        // If insert failed due to column not existing in Supabase yet, retry without new optional columns
+        if (prodError && (prodError.message?.includes('variants') || prodError.message?.includes('column') || prodError.message?.includes('availability_type'))) {
+          console.warn('Retrying insert without newer columns:', prodError.message);
+          const sanitizedPayload = { ...insertPayload };
+          delete sanitizedPayload.variants;
+          delete sanitizedPayload.availability_type;
+          delete sanitizedPayload.preparation_days;
+          const retryRes = await supabase
+            .from('products')
+            .insert(sanitizedPayload)
+            .select()
+            .maybeSingle();
+
+          if (!retryRes.error && retryRes.data) {
+            insertedProduct = retryRes.data;
+            prodError = null;
+          }
+        }
 
         if (prodError) {
           console.warn('Supabase product insert notice:', prodError.message || prodError);
