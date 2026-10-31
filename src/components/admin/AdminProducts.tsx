@@ -37,6 +37,7 @@ import {
   getProductMinDeliveryDays 
 } from '../../types/database';
 import { productService } from '../../services/productService';
+import { categoryService } from '../../services/categoryService';
 import { processImageFile } from '../../lib/imageUtils';
 import { isSupabaseConfigured, getSupabasePermissionFixScript } from '../../lib/supabase';
 import { SUPABASE_VARIANTS_SQL } from '../../data/variantsSqlScript';
@@ -110,6 +111,25 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   const [copiedSqlFix, setCopiedSqlFix] = useState<boolean>(false);
 
   const [isSyncingSupabase, setIsSyncingSupabase] = useState<boolean>(false);
+  const [showClearConfirmModal, setShowClearConfirmModal] = useState<boolean>(false);
+  const [isClearingAll, setIsClearingAll] = useState<boolean>(false);
+  const [newCategoryNameInput, setNewCategoryNameInput] = useState<string>('');
+
+  const handleClearAllCatalog = async () => {
+    setIsClearingAll(true);
+    setErrorMsg(null);
+    try {
+      await productService.clearAllCatalog();
+      await categoryService.deleteAllCategories();
+      setSuccessMsg('¡Catálogo y categorías vaciados con éxito! Ahora puedes montar todo desde cero.');
+      setShowClearConfirmModal(false);
+      onRefresh();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error vaciando el catálogo.');
+    } finally {
+      setIsClearingAll(false);
+    }
+  };
 
   const handleCopyPermissionFix = () => {
     const script = getSupabasePermissionFixScript();
@@ -159,7 +179,8 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setPrice(45);
     setPreviousPrice('');
     setSku(`BD-${Date.now().toString().slice(-4)}`);
-    setCategoryId(categories[0]?.id || 'cat-flores');
+    setCategoryId(categories[0]?.id || '');
+    setNewCategoryNameInput('');
     setAvailabilityType('ready_now');
     setPreparationDays(3);
     setGiftType('fixed');
@@ -306,6 +327,24 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
       }
     }
 
+    let finalCategoryId = categoryId;
+    if ((!finalCategoryId || finalCategoryId === '' || finalCategoryId === '__new__') && newCategoryNameInput.trim()) {
+      try {
+        const createdCat = await categoryService.createCategory({
+          name: newCategoryNameInput.trim(),
+          active: true,
+        });
+        if (createdCat) {
+          finalCategoryId = createdCat.id;
+        }
+      } catch (catErr) {
+        console.warn('Notice creating category dynamically:', catErr);
+      }
+    }
+    if (finalCategoryId === '__new__') {
+      finalCategoryId = '';
+    }
+
     const productPayload: Partial<Product> = {
       name: name.trim(),
       slug: slug.trim() || name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
@@ -313,7 +352,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
       price: effectivePrice,
       previous_price: previousPrice !== '' ? Number(previousPrice) : null,
       sku: sku.trim() || `BD-${Date.now().toString().slice(-4)}`,
-      category_id: categoryId,
+      category_id: finalCategoryId || undefined,
       product_type: availableForRental ? 'rental' : 'product',
       gift_type: computedGiftType,
       availability_type: availabilityType,
@@ -431,6 +470,16 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
           </button>
 
           <button
+            type="button"
+            onClick={() => setShowClearConfirmModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            title="Vaciar todos los productos y categorías para empezar tu catálogo limpio desde cero"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+            <span>Vaciar Catálogo (Desde Cero)</span>
+          </button>
+
+          <button
             onClick={openCreateModal}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#763D8B] hover:bg-[#602F72] text-white rounded-lg text-xs font-semibold uppercase tracking-wider shadow-sm transition-colors cursor-pointer self-start sm:self-auto"
           >
@@ -536,7 +585,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
             return (
               <div key={p.id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-[#FAF8F5]">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-14 h-14 rounded-xl bg-[#FAF8F5] overflow-hidden border border-[#EDE5DF] shrink-0">
+                  <div className="w-12 h-16 rounded-xl bg-[#FAF8F5] overflow-hidden border border-[#EDE5DF] shrink-0 aspect-[3/4]">
                     {mainImg ? (
                       <img src={mainImg} alt={p.name} className="w-full h-full object-cover" />
                     ) : (
@@ -618,7 +667,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                 return (
                   <tr key={p.id} className="hover:bg-[#FAF8F5]">
                     <td className="py-3 px-4">
-                      <div className="w-12 h-12 rounded-lg bg-[#FAF8F5] overflow-hidden border border-[#EDE5DF]">
+                      <div className="w-11 h-15 rounded-lg bg-[#FAF8F5] overflow-hidden border border-[#EDE5DF] aspect-[3/4]">
                         {mainImg ? (
                           <img src={mainImg} alt={p.name} className="w-full h-full object-cover" />
                         ) : (
@@ -785,8 +834,8 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                           )}
                         </div>
 
-                        {/* Image preview box */}
-                        <div className="w-full aspect-square rounded-lg bg-[#EFE8E2] overflow-hidden flex items-center justify-center relative border border-[#E3D7CE]">
+                        {/* Image preview box (Formato vertical 3:4 para arreglos) */}
+                        <div className="w-full aspect-[3/4] rounded-xl bg-[#FAF6F2] overflow-hidden flex items-center justify-center relative border border-[#E3D7CE] shadow-2xs">
                           {isUploading ? (
                             <div className="text-center p-2 flex flex-col items-center justify-center gap-1">
                               <Loader2 className="w-6 h-6 animate-spin text-[#763D8B]" />
@@ -874,19 +923,56 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
 
                 <div>
                   <label className="text-xs font-medium text-[#423530] block mb-1">
-                    Categoría *
+                    Categoría
                   </label>
-                  <select
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-[#2E2421]"
-                  >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  {categories.length > 0 ? (
+                    <div className="space-y-2">
+                      <select
+                        value={categoryId}
+                        onChange={(e) => {
+                          setCategoryId(e.target.value);
+                          if (e.target.value !== '__new__') {
+                            setNewCategoryNameInput('');
+                          }
+                        }}
+                        className="w-full p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-[#2E2421]"
+                      >
+                        <option value="">-- Sin categoría asignada (General) --</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                        <option value="__new__">+ Crear nueva categoría ahora...</option>
+                      </select>
+                      {categoryId === '__new__' && (
+                        <input
+                          type="text"
+                          value={newCategoryNameInput}
+                          onChange={(e) => setNewCategoryNameInput(e.target.value)}
+                          placeholder="Escribe el nombre de la nueva categoría..."
+                          className="w-full p-2 rounded-lg bg-white border border-[#763D8B] text-xs text-[#2E2421]"
+                          autoFocus
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-[#FAF8F5] rounded-xl border border-[#EDE5DF] space-y-1.5">
+                      <span className="text-xs font-semibold text-[#54433C] block">
+                        Crea una categoría para este producto (Opcional):
+                      </span>
+                      <input
+                        type="text"
+                        value={newCategoryNameInput}
+                        onChange={(e) => setNewCategoryNameInput(e.target.value)}
+                        placeholder="Ej: Ramos Florales, Arreglos con Globos..."
+                        className="w-full p-2.5 rounded-lg bg-white border border-[#D5C2B8] text-xs text-[#2E2421]"
+                      />
+                      <span className="text-[10px] text-stone-500 block font-light">
+                        Se creará automáticamente en la tienda pública al guardar este producto.
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* DISPONIBILIDAD Y TIPO DE ENTREGA */}
@@ -1511,6 +1597,44 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                 className="px-4 py-2.5 rounded-lg border border-[#D5C2B8] bg-white text-[#423530] hover:bg-[#F2ECE6] text-xs font-medium cursor-pointer"
               >
                 Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal to Clear All Catalog from 0 */}
+      {showClearConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-14 h-14 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+              <Trash2 className="w-7 h-7" />
+            </div>
+            <div className="text-center">
+              <h3 className="font-serif text-lg sm:text-xl font-bold text-stone-900">
+                ¿Vaciar catálogo y empezar desde cero?
+              </h3>
+              <p className="text-xs text-stone-600 mt-2 leading-relaxed">
+                Esta acción eliminará <strong>todas las categorías y productos actuales</strong> para que tu catálogo quede en blanco y puedas montar tus productos desde cero con tus fotos verticales y precios reales.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowClearConfirmModal(false)}
+                disabled={isClearingAll}
+                className="flex-1 py-2.5 rounded-xl border border-stone-300 text-stone-700 text-xs font-semibold hover:bg-stone-50 cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAllCatalog}
+                disabled={isClearingAll}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isClearingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                <span>{isClearingAll ? 'Vaciando...' : 'Sí, vaciar todo ahora'}</span>
               </button>
             </div>
           </div>

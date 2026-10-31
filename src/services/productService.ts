@@ -2,7 +2,18 @@ import { supabase, isSupabaseConfigured, uploadProductImage } from '../lib/supab
 import { Product, ProductImage } from '../types/database';
 import { INITIAL_PRODUCTS } from '../lib/mockData';
 
-const LOCAL_PRODUCTS_KEY = 'balloonsdei_products_clean_v4';
+const LOCAL_PRODUCTS_KEY = 'balloonsdei_products_clean_v5';
+
+// Purge old mock/demo storage keys once on load
+if (typeof window !== 'undefined') {
+  try {
+    ['balloonsdei_products_clean_v4', 'balloonsdei_products_v3', 'balloonsdei_products'].forEach((k) => {
+      if (localStorage.getItem(k) !== null) {
+        localStorage.removeItem(k);
+      }
+    });
+  } catch {}
+}
 
 function getLocalProducts(): Product[] {
   try {
@@ -20,10 +31,12 @@ function notifyDataUpdate() {
   }
 }
 
-function saveLocalProducts(products: Product[]) {
+function saveLocalProducts(products: Product[], notify: boolean = true) {
   try {
     localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(products));
-    notifyDataUpdate();
+    if (notify) {
+      notifyDataUpdate();
+    }
   } catch (e) {
     console.error('Error saving local products:', e);
   }
@@ -146,8 +159,8 @@ export const productService = {
             );
           }
 
-          // Cache in local storage for fast fallback
-          saveLocalProducts(allProducts);
+          // Cache in local storage for fast fallback (silent, do not trigger refresh loop)
+          saveLocalProducts(allProducts, false);
           return filtered;
         }
       } catch (err) {
@@ -231,10 +244,10 @@ export const productService = {
     const newId = generateUuid();
     let createdProductInDb: Product | null = null;
     let dbError: Error | null = null;
+    const cleanCatId = (productData.category_id && productData.category_id.trim()) ? productData.category_id.trim() : null;
 
     if (supabase && isSupabaseConfigured) {
       try {
-        const cleanCatId = (productData.category_id && productData.category_id.trim()) ? productData.category_id.trim() : null;
 
         // Ensure category exists to avoid Foreign Key violations in Supabase
         if (cleanCatId) {
@@ -342,45 +355,41 @@ export const productService = {
 
           const uploadedImages: ProductImage[] = [];
 
-          // Process and upload up to 4 images
-          for (const img of imageFiles.slice(0, 4)) {
-            let finalUrl = img.url;
-            if (img.file) {
-              const { url } = await uploadProductImage(img.file, productId, img.position);
-              if (url) finalUrl = url;
-            }
-
-            if (finalUrl) {
-              try {
-                const { data: imgRecord } = await supabase
-                  .from('product_images')
-                  .insert({
-                    product_id: productId,
-                    image_url: finalUrl,
-                    position: img.position,
-                  })
-                  .select()
-                  .maybeSingle();
-
-                if (imgRecord) {
-                  uploadedImages.push(imgRecord);
-                } else {
-                  uploadedImages.push({
-                    id: `img-${Date.now()}-${img.position}`,
-                    product_id: productId,
-                    image_url: finalUrl,
-                    position: img.position,
-                  });
-                }
-              } catch (imgErr) {
-                console.warn('Image record notice:', imgErr);
-                uploadedImages.push({
-                  id: `img-${Date.now()}-${img.position}`,
-                  product_id: productId,
-                  image_url: finalUrl,
-                  position: img.position,
-                });
+          // Upload all images in parallel for ultra-fast creation
+          const imageUploadResults = await Promise.all(
+            imageFiles.slice(0, 4).map(async (img) => {
+              let finalUrl = img.url;
+              if (img.file) {
+                const { url } = await uploadProductImage(img.file, productId, img.position, img.url);
+                if (url) finalUrl = url;
               }
+              return {
+                product_id: productId,
+                image_url: finalUrl,
+                position: img.position,
+              };
+            })
+          );
+
+          // Batch insert images into Supabase in a single instant query
+          const validImageRows = imageUploadResults.filter((img) => Boolean(img.image_url));
+          if (validImageRows.length > 0) {
+            try {
+              const { data: batchData } = await supabase
+                .from('product_images')
+                .insert(validImageRows)
+                .select();
+              if (batchData && batchData.length > 0) {
+                uploadedImages.push(...batchData);
+              } else {
+                uploadedImages.push(
+                  ...validImageRows.map((r, i) => ({ id: `img-${Date.now()}-${i}`, ...r }))
+                );
+              }
+            } catch {
+              uploadedImages.push(
+                ...validImageRows.map((r, i) => ({ id: `img-${Date.now()}-${i}`, ...r }))
+              );
             }
           }
 
@@ -416,7 +425,7 @@ export const productService = {
       price: Number(productData.price) || 0,
       previous_price: productData.previous_price ? Number(productData.previous_price) : null,
       sku: productData.sku || `BD-${Date.now().toString().slice(-4)}`,
-      category_id: productData.category_id || 'cat-flores',
+      category_id: cleanCatId || productData.category_id || '',
       product_type: productData.product_type || 'product',
       gift_type: productData.gift_type || 'none',
       availability_type: productData.availability_type || (productData.gift_type === 'variable' ? 'reservation' : 'ready_now'),
@@ -529,21 +538,25 @@ export const productService = {
           // Remove old images
           await supabase.from('product_images').delete().eq('product_id', id);
 
-          // Upload up to 4 images
-          for (const img of imageFiles.slice(0, 4)) {
-            let finalUrl = img.url;
-            if (img.file) {
-              const { url } = await uploadProductImage(img.file, id, img.position);
-              if (url) finalUrl = url;
-            }
-
-            if (finalUrl) {
-              await supabase.from('product_images').insert({
+          // Upload up to 4 images in parallel
+          const imageResults = await Promise.all(
+            imageFiles.slice(0, 4).map(async (img) => {
+              let finalUrl = img.url;
+              if (img.file) {
+                const { url } = await uploadProductImage(img.file, id, img.position, img.url);
+                if (url) finalUrl = url;
+              }
+              return {
                 product_id: id,
                 image_url: finalUrl,
                 position: img.position,
-              });
-            }
+              };
+            })
+          );
+
+          const validRows = imageResults.filter((img) => Boolean(img.image_url));
+          if (validRows.length > 0) {
+            await supabase.from('product_images').insert(validRows);
           }
         }
       } catch (err: any) {
@@ -607,9 +620,16 @@ export const productService = {
   async deleteProduct(id: string): Promise<boolean> {
     if (supabase && isSupabaseConfigured) {
       try {
-        await supabase.from('product_images').delete().eq('product_id', id);
+        // Delete child rows first so foreign keys never block deletion in Supabase
+        await Promise.allSettled([
+          supabase.from('product_variants').delete().eq('product_id', id),
+          supabase.from('product_images').delete().eq('product_id', id),
+          supabase.from('product_production_items').delete().eq('product_id', id),
+          supabase.from('custom_designs').delete().eq('base_product_id', id),
+          supabase.from('custom_designs').delete().eq('product_id', id),
+        ]);
         const { error } = await supabase.from('products').delete().eq('id', id);
-        if (error) console.error('Error deleting from Supabase:', error);
+        if (error) console.error('Error deleting product from Supabase:', error);
       } catch (err) {
         console.error('Error in deleteProduct with Supabase:', err);
       }
@@ -624,13 +644,58 @@ export const productService = {
   async deleteAllProducts(): Promise<boolean> {
     if (supabase && isSupabaseConfigured) {
       try {
-        await supabase.from('product_images').delete().neq('id', 'placeholder');
+        await Promise.allSettled([
+          supabase.from('product_variants').delete().neq('id', 'placeholder'),
+          supabase.from('product_images').delete().neq('id', 'placeholder'),
+          supabase.from('product_production_items').delete().neq('id', 'placeholder'),
+        ]);
         await supabase.from('products').delete().neq('id', 'placeholder');
       } catch (err) {
         console.warn('Error clearing products in Supabase:', err);
       }
     }
     saveLocalProducts([]);
+    return true;
+  },
+
+  async clearAllCatalog(): Promise<boolean> {
+    if (supabase && isSupabaseConfigured) {
+      try {
+        // Clean all dependent tables in strict dependency order so no Foreign Key prevents deletion
+        await Promise.allSettled([
+          supabase.from('production_movements').delete().neq('id', 'placeholder'),
+          supabase.from('product_production_items').delete().neq('id', 'placeholder'),
+          supabase.from('product_variants').delete().neq('id', 'placeholder'),
+          supabase.from('product_images').delete().neq('id', 'placeholder'),
+          supabase.from('custom_designs').delete().neq('id', 'placeholder'),
+          supabase.from('customizer_elements').delete().neq('id', 'placeholder'),
+        ]);
+        await supabase.from('production_items').delete().neq('id', 'placeholder');
+        await supabase.from('products').delete().neq('id', 'placeholder');
+        await supabase.from('categories').delete().neq('id', 'placeholder');
+      } catch (err) {
+        console.warn('Error clearing entire catalog in Supabase:', err);
+      }
+    }
+    try {
+      [
+        'balloonsdei_products_clean_v5',
+        'balloonsdei_categories_clean_v5',
+        'balloonsdei_products_clean_v4',
+        'balloonsdei_categories_clean_v4',
+        'balloonsdei_products_v3',
+        'balloonsdei_categories_v3',
+        'balloonsdei_products',
+        'balloonsdei_categories',
+        'balloonsdei_prod_items_v2',
+        'balloonsdei_prod_movements_v2',
+        'balloonsdei_prod_relations_v2',
+        'balloonsdei_customizer_elements_v1',
+        'balloonsdei_customizer_designs_v1',
+      ].forEach((k) => localStorage.removeItem(k));
+    } catch {}
+    saveLocalProducts([]);
+    notifyDataUpdate();
     return true;
   },
 

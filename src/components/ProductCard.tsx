@@ -53,8 +53,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       onClick={() => onViewProduct(product)}
       className="group flex flex-col bg-white border border-[#EAE3DC] rounded-2xl overflow-hidden cursor-pointer transition-[transform,box-shadow,border-color] duration-240 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:border-[#C5A059]/60 hover:shadow-xl hover:shadow-[#241A23]/8 active:scale-[0.99] active:duration-75"
     >
-      {/* Product Image Stage */}
-      <div className="relative aspect-4/5 overflow-hidden bg-[#FAF6F2]">
+      {/* Product Image Stage (Formato vertical elegante 3:4 para ramos y arreglos de globos) */}
+      <div className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden bg-[#FAF6F2]">
         <img
           src={mainImage}
           alt={product.name}

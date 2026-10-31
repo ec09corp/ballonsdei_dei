@@ -1,9 +1,20 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Category } from '../types/database';
 import { INITIAL_CATEGORIES } from '../lib/mockData';
-import { processImageFile } from '../lib/imageUtils';
+import { processImageFile, dataUrlToBlob } from '../lib/imageUtils';
 
-const LOCAL_CATEGORIES_KEY = 'balloonsdei_categories_clean_v4';
+const LOCAL_CATEGORIES_KEY = 'balloonsdei_categories_clean_v5';
+
+// Purge old mock/demo storage keys once on load
+if (typeof window !== 'undefined') {
+  try {
+    ['balloonsdei_categories_clean_v4', 'balloonsdei_categories_v3', 'balloonsdei_categories'].forEach((k) => {
+      if (localStorage.getItem(k) !== null) {
+        localStorage.removeItem(k);
+      }
+    });
+  } catch {}
+}
 
 function notifyDataUpdate() {
   if (typeof window !== 'undefined') {
@@ -24,10 +35,12 @@ function getLocalCategories(): Category[] {
   return [];
 }
 
-function saveLocalCategories(cats: Category[]) {
+function saveLocalCategories(cats: Category[], notify: boolean = true) {
   try {
     localStorage.setItem(LOCAL_CATEGORIES_KEY, JSON.stringify(cats));
-    notifyDataUpdate();
+    if (notify) {
+      notifyDataUpdate();
+    }
   } catch (e) {
     console.error('Error saving local categories:', e);
   }
@@ -38,7 +51,7 @@ export const categoryService = {
     // Compress image to compact web-safe Data URL (persists in DB/storage, works instantly on mobile/desktop)
     let fallbackDataUrl = '';
     try {
-      fallbackDataUrl = await processImageFile(file, 900, 0.85);
+      fallbackDataUrl = await processImageFile(file, 850, 0.8);
     } catch {
       fallbackDataUrl = '';
     }
@@ -49,13 +62,21 @@ export const categoryService = {
         const cleanId = (categoryId || 'cat').replace(/[^a-zA-Z0-9_-]/g, '');
         const filePath = `categories/category-${cleanId}-${Date.now()}.${ext}`;
 
-        const { error: uploadError } = await supabase.storage
+        const uploadBlob = fallbackDataUrl ? dataUrlToBlob(fallbackDataUrl) : file;
+
+        const uploadPromise = supabase.storage
           .from('product-images')
-          .upload(filePath, file, {
-            contentType: file.type || 'image/jpeg',
+          .upload(filePath, uploadBlob, {
+            contentType: 'image/jpeg',
             cacheControl: '3600',
             upsert: true,
           });
+
+        const timeoutPromise = new Promise<{ error: Error }>((_, reject) =>
+          setTimeout(() => reject(new Error('Storage timeout')), 4000)
+        );
+
+        const { error: uploadError } = await (Promise.race([uploadPromise, timeoutPromise]) as any);
 
         if (!uploadError) {
           const { data: pubData } = supabase.storage
@@ -95,7 +116,7 @@ export const categoryService = {
           const allCats = [...dbCats, ...localOnly].sort(
             (a, b) => (a.display_order || 99) - (b.display_order || 99)
           );
-          saveLocalCategories(allCats);
+          saveLocalCategories(allCats, false);
           return activeOnly ? allCats.filter((c) => c.active) : allCats;
         }
       } catch (err) {
@@ -194,7 +215,10 @@ export const categoryService = {
   async deleteCategory(id: string): Promise<boolean> {
     if (supabase && isSupabaseConfigured) {
       try {
-        await supabase.from('categories').delete().eq('id', id);
+        // Disassociate products from this category first so no FK violation occurs
+        await supabase.from('products').update({ category_id: null }).eq('category_id', id);
+        const { error } = await supabase.from('categories').delete().eq('id', id);
+        if (error) console.error('Error deleting category in Supabase:', error);
       } catch (err) {
         console.error('Error deleting category in Supabase:', err);
       }
@@ -203,6 +227,19 @@ export const categoryService = {
     const current = getLocalCategories();
     const filtered = current.filter((c) => c.id !== id);
     saveLocalCategories(filtered);
+    return true;
+  },
+
+  async deleteAllCategories(): Promise<boolean> {
+    if (supabase && isSupabaseConfigured) {
+      try {
+        await supabase.from('products').update({ category_id: null }).neq('id', 'placeholder');
+        await supabase.from('categories').delete().neq('id', 'placeholder');
+      } catch (err) {
+        console.warn('Error clearing categories in Supabase:', err);
+      }
+    }
+    saveLocalCategories([]);
     return true;
   },
 };

@@ -106,8 +106,10 @@ function MainApp() {
     };
   }, []);
 
-  const loadAllData = async () => {
-    setIsLoading(true);
+  const loadAllData = async (isSilent: boolean = false) => {
+    if (!isSilent) {
+      setIsLoading(true);
+    }
     try {
       const fetchedCats = await categoryService.getCategories();
       setCategories(fetchedCats);
@@ -137,19 +139,28 @@ function MainApp() {
     } catch (err) {
       console.error('Error loading store data:', err);
     } finally {
-      setIsLoading(false);
+      if (!isSilent) {
+        setIsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadAllData();
+    loadAllData(false);
 
-    // Listen to real-time local updates dispatched from admin
+    // Listen to real-time local updates dispatched from admin with debounce & silent refresh
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const handleDataUpdate = () => {
-      loadAllData();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        loadAllData(true);
+      }, 300);
     };
     window.addEventListener('balloonsdei_data_updated', handleDataUpdate);
-    return () => window.removeEventListener('balloonsdei_data_updated', handleDataUpdate);
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      window.removeEventListener('balloonsdei_data_updated', handleDataUpdate);
+    };
   }, []);
 
   const handleNavigate = (sectionId: string, categorySlug?: string) => {
@@ -182,7 +193,7 @@ function MainApp() {
   const handleExitAdmin = () => {
     window.location.hash = '';
     setIsAdminView(false);
-    loadAllData(); // Always refresh latest products and categories when returning to storefront
+    loadAllData(true); // Quietly refresh latest products and categories without full-screen flicker
   };
 
   // Filter storefront products
@@ -437,7 +448,14 @@ function MainApp() {
                 ? 'El catálogo se encuentra en preparación. Puedes agregar tus categorías y productos desde el panel de control.'
                 : 'Aún no se han añadido productos en esta categoría.'}
             </p>
-            {activeCategoryFilter !== 'all' && (
+            {activeCategoryFilter === 'all' ? (
+              <button
+                onClick={handleOpenAdmin}
+                className="btn-cta-emil mt-2 px-5 py-2.5 bg-[#763D8B] text-white text-xs font-semibold tracking-wider uppercase rounded-full cursor-pointer inline-flex items-center gap-2 shadow-sm"
+              >
+                <span>Ir al Panel y Crear Mi Primer Producto</span>
+              </button>
+            ) : (
               <button
                 onClick={() => setActiveCategoryFilter('all')}
                 className="btn-cta-emil mt-2 px-5 py-2.5 bg-[#763D8B] text-white text-xs font-semibold tracking-wider uppercase rounded-full cursor-pointer"

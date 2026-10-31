@@ -170,13 +170,30 @@ export const AdminCategories: React.FC<AdminCategoriesProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={openCreateModal}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#763D8B] hover:bg-[#5E2F70] text-white rounded-xl text-xs font-semibold uppercase tracking-wider shadow-sm transition-colors cursor-pointer self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Nueva Categoría</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {categories.length > 0 && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (window.confirm('¿Deseas vaciar todas las categorías para empezar desde cero?')) {
+                  await categoryService.deleteAllCategories();
+                  onRefresh();
+                }
+              }}
+              className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+            >
+              Vaciar Categorías
+            </button>
+          )}
+
+          <button
+            onClick={openCreateModal}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#763D8B] hover:bg-[#5E2F70] text-white rounded-xl text-xs font-semibold uppercase tracking-wider shadow-sm transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nueva Categoría</span>
+          </button>
+        </div>
       </div>
 
       {successMsg && (
@@ -189,14 +206,35 @@ export const AdminCategories: React.FC<AdminCategoriesProps> = ({
         </div>
       )}
 
-      {/* Grid of Categories */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Grid of Categories or Empty State */}
+      {categories.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-[#EDE5DF] p-10 text-center max-w-lg mx-auto space-y-4 shadow-xs">
+          <div className="w-16 h-16 rounded-full bg-[#FAF4F7] text-[#763D8B] flex items-center justify-center mx-auto border border-[#E4D7E0]">
+            <FolderTree className="w-8 h-8" />
+          </div>
+          <div>
+            <h3 className="font-serif text-lg font-medium text-stone-900">No hay categorías todavía</h3>
+            <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+              Tu catálogo está listo en cero. Haz clic en "Nueva Categoría" para agregar la primera desde tu galería de fotos o crea productos directamente.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#763D8B] hover:bg-[#5E2F70] text-white rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Crear mi Primera Categoría</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {categories.map((c) => (
           <div
             key={c.id}
             className="bg-white rounded-2xl border border-[#EDE5DF] p-4 flex gap-4 items-center shadow-xs hover:shadow-md transition-all group"
           >
-            <div className="w-20 h-20 rounded-xl overflow-hidden bg-[#FAF8F5] shrink-0 border border-[#EDE5DF] relative">
+            <div className="w-20 h-26 rounded-xl overflow-hidden bg-[#FAF8F5] shrink-0 border border-[#EDE5DF] relative aspect-[3/4]">
               <img
                 src={c.image_url || 'https://images.unsplash.com/photo-1526047932273-341f2a7631f9?auto=format&fit=crop&w=200&q=80'}
                 alt={c.name}
@@ -241,6 +279,7 @@ export const AdminCategories: React.FC<AdminCategoriesProps> = ({
           </div>
         ))}
       </div>
+      )}
 
       {/* Modal Creación / Edición */}
       {isModalOpen && (
@@ -291,7 +330,7 @@ export const AdminCategories: React.FC<AdminCategoriesProps> = ({
 
                   {imageUrl ? (
                     <div className="relative rounded-2xl overflow-hidden border border-[#D5C2B8] bg-stone-50 group">
-                      <div className="aspect-16/9 w-full max-h-48 overflow-hidden bg-black/5 flex items-center justify-center">
+                      <div className="aspect-[3/4] sm:aspect-[4/3] w-full max-h-64 overflow-hidden bg-black/5 flex items-center justify-center">
                         <img
                           src={imageUrl}
                           alt="Vista previa"

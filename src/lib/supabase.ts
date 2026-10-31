@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { processImageFile } from './imageUtils';
+import { processImageFile, dataUrlToBlob } from './imageUtils';
 import { DEFAULT_SUPABASE_CONFIG } from '../config/supabaseConfig';
 
 const STORAGE_URL_KEY = 'ballonsdei_supabase_url';
@@ -174,14 +174,17 @@ export const supabase: SupabaseClient | any = new Proxy({}, {
 export async function uploadProductImage(
   file: File, 
   productId: string, 
-  position: number
+  position: number,
+  precomputedDataUrl?: string
 ): Promise<{ url: string | null; error: Error | null }> {
-  // Compress image to compact web-safe format (<80KB) as resilient fallback
-  let fallbackDataUrl = '';
-  try {
-    fallbackDataUrl = await processImageFile(file, 800, 0.8);
-  } catch {
-    fallbackDataUrl = '';
+  // Use precomputed data URL if available to avoid redundant canvas compression
+  let fallbackDataUrl = precomputedDataUrl || '';
+  if (!fallbackDataUrl) {
+    try {
+      fallbackDataUrl = await processImageFile(file, 850, 0.8);
+    } catch {
+      fallbackDataUrl = '';
+    }
   }
 
   const client = getActiveSupabaseClient();
@@ -196,15 +199,26 @@ export async function uploadProductImage(
     const ext = file.name.split('.').pop() || 'jpg';
     const filePath = `products/${productId}/image-${position}-${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await client.storage
+    // Upload tiny lightweight blob instead of 10MB uncompressed raw file
+    const uploadPayload = fallbackDataUrl ? dataUrlToBlob(fallbackDataUrl) : file;
+
+    // Fast 4-second timeout to avoid any device freezing on slow connections
+    const uploadPromise = client.storage
       .from('product-images')
-      .upload(filePath, file, {
+      .upload(filePath, uploadPayload, {
+        contentType: 'image/jpeg',
         cacheControl: '3600',
         upsert: true,
       });
 
+    const timeoutPromise = new Promise<{ error: Error }>((_, reject) =>
+      setTimeout(() => reject(new Error('Storage timeout')), 4000)
+    );
+
+    const { error: uploadError } = await (Promise.race([uploadPromise, timeoutPromise]) as any);
+
     if (uploadError) {
-      console.warn('Supabase storage upload notice (usando data URL comprimido):', uploadError.message);
+      console.warn('Supabase storage notice, using ultra-fast data URL:', uploadError.message);
       return { url: fallbackDataUrl, error: null };
     }
 
@@ -214,7 +228,7 @@ export async function uploadProductImage(
 
     return { url: publicUrlData.publicUrl, error: null };
   } catch (err: any) {
-    console.warn('Storage notice, using fallback data URL:', err);
+    console.warn('Storage fallback to high-quality data URL:', err?.message || err);
     return { url: fallbackDataUrl, error: null };
   }
 }

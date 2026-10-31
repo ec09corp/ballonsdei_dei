@@ -212,9 +212,9 @@ export const LiveGiftPreviewStage: React.FC<LiveGiftPreviewStageProps> = ({
         {/* 3D Round Pedestal Podium at the base of the gift */}
         <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 w-[75%] sm:w-[65%] h-14 sm:h-18 rounded-[50%] bg-gradient-to-b from-[#CDBEB0] to-[#B3A192] shadow-[0_12px_30px_rgba(40,25,20,0.35),inset_0_2px_4px_rgba(255,255,255,0.7)] border-t border-white/60 pointer-events-none opacity-80" />
 
-        {/* The Base Product Reference Photo */}
+        {/* The Base Product Reference Photo (Vertical 3:4 portrait view) */}
         <div className="relative z-10 w-full flex items-center justify-center p-4 sm:p-6 pb-12 sm:pb-14">
-          <div className="relative max-w-[340px] sm:max-w-[420px] w-full aspect-square rounded-2xl overflow-hidden shadow-xl border border-white/40">
+          <div className="relative max-w-[340px] sm:max-w-[420px] w-full aspect-[3/4] rounded-2xl overflow-hidden shadow-xl border border-white/40 bg-[#FAF6F2]">
             <img
               src={referenceImageUrl}
               alt={productName}

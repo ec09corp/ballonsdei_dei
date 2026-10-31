@@ -13,7 +13,7 @@ function getLocalProductionItems(): ProductionItem[] {
   } catch (e) {
     console.error('Error reading local production items:', e);
   }
-  return INITIAL_PRODUCTION_ITEMS;
+  return [];
 }
 
 function saveLocalProductionItems(items: ProductionItem[]) {
@@ -48,6 +48,7 @@ export const productionService = {
           .order('name', { ascending: true });
 
         if (!error && data) {
+          saveLocalProductionItems(data);
           return data;
         }
       } catch (err) {
@@ -65,6 +66,23 @@ export const productionService = {
       : (item.current_quantity ?? 0) <= (item.minimum_quantity ?? 5)
       ? 'low_stock'
       : 'available';
+
+    const localItem: ProductionItem = {
+      id: newId,
+      name: item.name || 'Nuevo Insumo',
+      description: item.description || null,
+      category: item.category || 'Varios',
+      unit: item.unit || 'unidades',
+      current_quantity: item.current_quantity || 0,
+      minimum_quantity: item.minimum_quantity || 5,
+      cost: item.cost || 0,
+      supplier: item.supplier || null,
+      status,
+      created_at: new Date().toISOString(),
+    };
+
+    const current = getLocalProductionItems();
+    saveLocalProductionItems([...current, localItem]);
 
     if (supabase && isSupabaseConfigured) {
       try {
@@ -84,47 +102,20 @@ export const productionService = {
           .select()
           .single();
 
-        if (!error && data) return data;
+        if (!error && data) {
+          const fresh = getLocalProductionItems().map((i) => i.id === newId ? data : i);
+          saveLocalProductionItems(fresh);
+          return data;
+        }
       } catch (err) {
         console.error('Error creating production item in Supabase:', err);
       }
     }
 
-    const newItem: ProductionItem = {
-      id: newId,
-      name: item.name || 'Nuevo Insumo',
-      description: item.description || null,
-      category: item.category || 'Varios',
-      unit: item.unit || 'unidades',
-      current_quantity: item.current_quantity || 0,
-      minimum_quantity: item.minimum_quantity || 5,
-      cost: item.cost || 0,
-      supplier: item.supplier || null,
-      status,
-      created_at: new Date().toISOString(),
-    };
-
-    const current = getLocalProductionItems();
-    saveLocalProductionItems([...current, newItem]);
-    return newItem;
+    return localItem;
   },
 
   async updateItem(id: string, updates: Partial<ProductionItem>): Promise<ProductionItem | null> {
-    if (supabase && isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from('production_items')
-          .update(updates)
-          .eq('id', id)
-          .select()
-          .single();
-
-        if (!error && data) return data;
-      } catch (err) {
-        console.error('Error updating production item in Supabase:', err);
-      }
-    }
-
     const current = getLocalProductionItems();
     const updated = current.map((it) => {
       if (it.id === id) {
@@ -140,24 +131,45 @@ export const productionService = {
     });
 
     saveLocalProductionItems(updated);
+
+    if (supabase && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('production_items')
+          .update(updates)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (!error && data) {
+          const fresh = getLocalProductionItems().map((i) => i.id === id ? data : i);
+          saveLocalProductionItems(fresh);
+          return data;
+        }
+      } catch (err) {
+        console.error('Error updating production item in Supabase:', err);
+      }
+    }
+
     return updated.find((it) => it.id === id) || null;
   },
 
   async deleteItem(id: string): Promise<boolean> {
+    const current = getLocalProductionItems();
+    const filtered = current.filter((it) => it.id !== id);
+    saveLocalProductionItems(filtered);
+
     if (supabase && isSupabaseConfigured) {
       try {
         await supabase.from('production_movements').delete().eq('item_id', id);
         await supabase.from('product_production_items').delete().eq('production_item_id', id);
         const { error } = await supabase.from('production_items').delete().eq('id', id);
-        if (!error) return true;
+        if (error) console.error('Error deleting production item in Supabase:', error);
       } catch (err) {
         console.error('Error deleting production item in Supabase:', err);
       }
     }
 
-    const current = getLocalProductionItems();
-    const filtered = current.filter((it) => it.id !== id);
-    saveLocalProductionItems(filtered);
     return true;
   },
 

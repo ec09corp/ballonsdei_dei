@@ -45,8 +45,8 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({
                     : 'border-[#EAE1D9] hover:border-[#C5A059]/60 shadow-xs hover:shadow-lg'
                 }`}
               >
-                {/* Image */}
-                <div className="aspect-4/5 overflow-hidden bg-[#ECE4DE]">
+                {/* Image (Vertical portrait format) */}
+                <div className="aspect-[3/4] sm:aspect-[4/5] overflow-hidden bg-[#ECE4DE]">
                   <img
                     src={cat.image_url || 'https://images.unsplash.com/photo-1526047932273-341f2a7631f9?auto=format&fit=crop&w=800&q=80'}
                     alt={cat.name}

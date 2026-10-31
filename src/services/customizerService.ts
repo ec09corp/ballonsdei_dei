@@ -16,21 +16,13 @@ class CustomizerService {
     if (typeof window === 'undefined') return;
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        const hasOldPhotos = Array.isArray(parsed) && parsed.some((p: any) => p.image_url && p.image_url.includes('unsplash.com'));
-        if (hasOldPhotos) {
-          this.localElements = [...DEFAULT_CUSTOMIZER_ELEMENTS];
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.localElements));
-        } else {
-          this.localElements = parsed;
-        }
+      if (stored !== null) {
+        this.localElements = JSON.parse(stored);
       } else {
-        this.localElements = [...DEFAULT_CUSTOMIZER_ELEMENTS];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.localElements));
+        this.localElements = [];
       }
     } catch {
-      this.localElements = [...DEFAULT_CUSTOMIZER_ELEMENTS];
+      this.localElements = [];
     }
   }
 
@@ -59,7 +51,11 @@ class CustomizerService {
         }
 
         const { data, error } = await query;
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
+          if (!category || category === 'all') {
+            this.localElements = data as CustomizerElementItem[];
+            this.persistLocal();
+          }
           return data as CustomizerElementItem[];
         }
       } catch (err) {
@@ -86,6 +82,9 @@ class CustomizerService {
       order_index: item.order_index ?? this.localElements.length + 1,
     };
 
+    this.localElements.push(newItem);
+    this.persistLocal();
+
     if (supabase && isSupabaseConfigured) {
       try {
         const { data, error } = await supabase
@@ -95,21 +94,28 @@ class CustomizerService {
           .maybeSingle();
 
         if (!error && data) {
-          this.localElements.push(data as CustomizerElementItem);
-          this.persistLocal();
+          const idx = this.localElements.findIndex((e) => e.id === newItem.id);
+          if (idx !== -1) {
+            this.localElements[idx] = data as CustomizerElementItem;
+            this.persistLocal();
+          }
           return data as CustomizerElementItem;
         }
       } catch (err) {
-        // Fallback to local
+        console.error('Error inserting customizer element into Supabase:', err);
       }
     }
 
-    this.localElements.push(newItem);
-    this.persistLocal();
     return newItem;
   }
 
   async updateElement(id: string, updates: Partial<CustomizerElementItem>): Promise<CustomizerElementItem | null> {
+    const idx = this.localElements.findIndex((e) => e.id === id);
+    if (idx > -1) {
+      this.localElements[idx] = { ...this.localElements[idx], ...updates };
+      this.persistLocal();
+    }
+
     if (supabase && isSupabaseConfigured) {
       try {
         const { data, error } = await supabase
@@ -120,7 +126,6 @@ class CustomizerService {
           .maybeSingle();
 
         if (!error && data) {
-          const idx = this.localElements.findIndex((e) => e.id === id);
           if (idx > -1) {
             this.localElements[idx] = data as CustomizerElementItem;
             this.persistLocal();
@@ -128,28 +133,41 @@ class CustomizerService {
           return data as CustomizerElementItem;
         }
       } catch (err) {
-        // fallback
+        console.error('Error updating customizer element in Supabase:', err);
       }
     }
 
-    const idx = this.localElements.findIndex((e) => e.id === id);
-    if (idx > -1) {
-      this.localElements[idx] = { ...this.localElements[idx], ...updates };
-      this.persistLocal();
-      return this.localElements[idx];
-    }
-    return null;
+    return idx > -1 ? this.localElements[idx] : null;
   }
 
   async deleteElement(id: string): Promise<boolean> {
-    if (supabase && isSupabaseConfigured) {
-      try {
-        await supabase.from('customizer_elements').delete().eq('id', id);
-      } catch {}
-    }
-
     this.localElements = this.localElements.filter((e) => e.id !== id);
     this.persistLocal();
+
+    if (supabase && isSupabaseConfigured) {
+      try {
+        const { error } = await supabase.from('customizer_elements').delete().eq('id', id);
+        if (error) console.error('Error deleting customizer element in Supabase:', error);
+      } catch (err) {
+        console.error('Error in deleteElement:', err);
+      }
+    }
+
+    return true;
+  }
+
+  async deleteAllElements(): Promise<boolean> {
+    this.localElements = [];
+    this.persistLocal();
+
+    if (supabase && isSupabaseConfigured) {
+      try {
+        await supabase.from('customizer_elements').delete().neq('id', 'placeholder_keep');
+      } catch (err) {
+        console.error('Error deleting all customizer elements in Supabase:', err);
+      }
+    }
+
     return true;
   }
 

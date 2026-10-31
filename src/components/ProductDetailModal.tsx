@@ -337,7 +337,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                             setSelectedImageIndex(index);
                             setIsZoomed(false);
                           }}
-                          className={`chip-spring relative aspect-square rounded-xl overflow-hidden border-2 cursor-pointer bg-[#EAE2DC] ${
+                          className={`chip-spring relative aspect-[3/4] rounded-xl overflow-hidden border-2 cursor-pointer bg-[#FAF6F2] ${
                             isActive
                               ? 'border-[#763D8B] ring-2 ring-[#763D8B]/30 scale-102 shadow-xs'
                               : 'border-transparent opacity-75 hover:opacity-100 hover:border-[#D5C2B8]'
@@ -512,7 +512,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
               {/* Left Column: 4-Images Professional Gallery */}
               <div className="lg:col-span-6 flex flex-col gap-4">
-                <div className="relative aspect-4/3 sm:aspect-square w-full rounded-xl overflow-hidden bg-[#F2EDE8] border border-[#E8DED7] group shadow-inner">
+                {/* Contenedor Vertical Elegante (3:4 / 4:5) para ver arreglos y ramos completos */}
+                <div className="relative aspect-[3/4] sm:aspect-[4/5] w-full max-w-lg mx-auto rounded-2xl overflow-hidden bg-[#FAF6F2] border border-[#E8DED7] group shadow-inner flex items-center justify-center">
                   <img
                     src={currentImageUrl}
                     alt={product.name}
@@ -563,7 +564,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           setSelectedImageIndex(index);
                           setIsZoomed(false);
                         }}
-                        className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all cursor-pointer bg-[#EAE2DC] ${
+                        className={`relative aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all cursor-pointer bg-[#FAF6F2] ${
                           isActive
                             ? 'border-[#763D8B] ring-2 ring-[#763D8B]/30 scale-102'
                             : 'border-transparent opacity-70 hover:opacity-100 hover:border-[#D5C2B8]'
@@ -882,7 +883,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     }}
                     className="group cursor-pointer bg-white rounded-lg p-2.5 border border-[#EDE5DF] hover:shadow-md hover:border-[#763D8B]/30 transition-[box-shadow,border-color,transform] duration-150 active:scale-[0.98]"
                   >
-                    <div className="aspect-square rounded-md overflow-hidden bg-[#F5EFEB] mb-2">
+                    <div className="aspect-[3/4] rounded-md overflow-hidden bg-[#F5EFEB] mb-2">
                       <img
                         src={rel.images?.[0]?.image_url || 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=400&q=80'}
                         alt={rel.name}
