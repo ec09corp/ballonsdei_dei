@@ -137,10 +137,11 @@ export const productService = {
             };
           });
 
-          // Merge local products so any newly created product that isn't yet in Supabase NEVER disappears!
+          // Supabase is the single source of truth across all devices.
+          // Only preserve local items if they were created offline and marked savedLocally.
           const localProducts = getLocalProducts();
-          const localOnly = localProducts.filter((lp) => !products.some((sp) => sp.id === lp.id));
-          const allProducts = [...products, ...localOnly];
+          const offlineOnly = localProducts.filter((lp: any) => lp.savedLocally && !products.some((sp) => sp.id === lp.id));
+          const allProducts = [...products, ...offlineOnly];
 
           let filtered = allProducts;
           if (params?.categorySlug) {

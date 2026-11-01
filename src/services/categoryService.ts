@@ -111,9 +111,9 @@ export const categoryService = {
         if (!error && data) {
           const dbCats = data as Category[];
           const localCats = getLocalCategories();
-          // Merge so any freshly created category never disappears
-          const localOnly = localCats.filter((lc) => !dbCats.some((dc) => dc.id === lc.id));
-          const allCats = [...dbCats, ...localOnly].sort(
+          // Supabase is the source of truth across all devices.
+          const offlineOnly = localCats.filter((lc: any) => lc.savedLocally && !dbCats.some((dc) => dc.id === lc.id));
+          const allCats = [...dbCats, ...offlineOnly].sort(
             (a, b) => (a.display_order || 99) - (b.display_order || 99)
           );
           saveLocalCategories(allCats, false);
