@@ -29,8 +29,12 @@ export const AdminExtras: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const loadExtras = () => {
+  const loadExtras = async () => {
     setExtras(extrasService.getExtras());
+    try {
+      const fresh = await extrasService.syncFromSupabase();
+      setExtras(fresh);
+    } catch {}
   };
 
   useEffect(() => {

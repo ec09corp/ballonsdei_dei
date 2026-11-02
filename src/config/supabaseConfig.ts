@@ -34,9 +34,6 @@ export interface SupabaseConfigDefinition {
 }
 
 export const DEFAULT_SUPABASE_CONFIG: SupabaseConfigDefinition = {
-  // Pega aquí la URL de tu proyecto Supabase (ej: 'https://xxxxxxxxxxxx.supabase.co')
-  url: '',
-
-  // Pega aquí la Anon Public Key de tu proyecto Supabase
-  anonKey: '',
+  url: 'https://wemcnljmazaxujqcvuuq.supabase.co',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndlbWNubGptYXpheHVqcWN2dXVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NDI2MjYsImV4cCI6MjEwNjIxODYyNn0.U40p9HuqjzkD02-7Mjl3wD8w1OyK2xgVDnSwgh7VjDE',
 };

@@ -3,7 +3,7 @@
  * Handles JPG, PNG, WEBP, GIF, and mobile photo formats seamlessly.
  * Optimized for fast uploads and minimal storage footprint (<80KB).
  */
-export async function processImageFile(file: File, maxDimension = 800, quality = 0.75): Promise<string> {
+export async function processImageFile(file: File, maxDimension = 650, quality = 0.65): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!file) {
       return reject(new Error('Archivo no válido'));

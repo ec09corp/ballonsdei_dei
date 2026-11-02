@@ -1,15 +1,35 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { ProductionItem, ProductionMovement, ProductProductionItem, MovementType } from '../types/database';
-import { INITIAL_PRODUCTION_ITEMS } from '../lib/mockData';
 
-const LOCAL_PROD_ITEMS_KEY = 'ballonsdei_prod_items_v2';
-const LOCAL_PROD_MOVEMENTS_KEY = 'ballonsdei_prod_movements_v2';
-const LOCAL_PROD_RELATIONS_KEY = 'ballonsdei_prod_relations_v2';
+const LOCAL_PROD_ITEMS_KEY = 'ballonsdei_prod_items_v3';
+const LOCAL_PROD_MOVEMENTS_KEY = 'ballonsdei_prod_movements_v3';
+const LOCAL_PROD_RELATIONS_KEY = 'ballonsdei_prod_relations_v3';
+const SETTINGS_ROW_ID = '75b13ef3-b885-462e-a110-f2fccbc47530';
+
+function safeUuid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+function calculateStatus(curr: number, min: number): 'available' | 'low_stock' | 'out_of_stock' {
+  if (curr <= 0) return 'out_of_stock';
+  if (curr <= min) return 'low_stock';
+  return 'available';
+}
 
 function getLocalProductionItems(): ProductionItem[] {
   try {
     const raw = localStorage.getItem(LOCAL_PROD_ITEMS_KEY);
-    if (raw !== null) return JSON.parse(raw);
+    if (raw !== null) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
   } catch (e) {
     console.error('Error reading local production items:', e);
   }
@@ -20,7 +40,16 @@ function saveLocalProductionItems(items: ProductionItem[]) {
   try {
     localStorage.setItem(LOCAL_PROD_ITEMS_KEY, JSON.stringify(items));
   } catch (e) {
-    console.error('Error saving local production items:', e);
+    console.warn('Quota error saving local production items, slimming entries:', e);
+    try {
+      const slim = items.map((it) => ({
+        ...it,
+        description: it.description?.slice(0, 80) || null,
+      }));
+      localStorage.setItem(LOCAL_PROD_ITEMS_KEY, JSON.stringify(slim));
+    } catch (err2) {
+      console.error('Could not save production items locally:', err2);
+    }
   }
 }
 
@@ -34,12 +63,14 @@ function getLocalMovements(): ProductionMovement[] {
 
 function saveLocalMovements(movs: ProductionMovement[]) {
   try {
-    localStorage.setItem(LOCAL_PROD_MOVEMENTS_KEY, JSON.stringify(movs));
+    localStorage.setItem(LOCAL_PROD_MOVEMENTS_KEY, JSON.stringify(movs.slice(0, 100)));
   } catch (e) {}
 }
 
 export const productionService = {
   async getItems(): Promise<ProductionItem[]> {
+    const local = getLocalProductionItems();
+
     if (supabase && isSupabaseConfigured) {
       try {
         const { data, error } = await supabase
@@ -47,25 +78,56 @@ export const productionService = {
           .select('*')
           .order('name', { ascending: true });
 
-        if (!error && data) {
-          saveLocalProductionItems(data);
-          return data;
+        if (!error && Array.isArray(data)) {
+          const mapped: ProductionItem[] = data.map((d: any) => ({
+            id: d.id,
+            name: d.name,
+            description: d.description || null,
+            category: d.category || 'Varios',
+            unit: d.unit || 'unidades',
+            current_quantity: Number(d.current_quantity) || 0,
+            minimum_quantity: Number(d.minimum_quantity) || 0,
+            cost: Number(d.unit_cost ?? d.cost) || 0,
+            supplier: d.supplier || null,
+            status: calculateStatus(Number(d.current_quantity) || 0, Number(d.minimum_quantity) || 0),
+            created_at: d.created_at,
+          }));
+
+          // Merge any newly added local items not yet in remote
+          const missingLocals = local.filter((loc) => !mapped.some((rem) => rem.id === loc.id || rem.name === loc.name));
+          const finalItems = [...mapped, ...missingLocals];
+          saveLocalProductionItems(finalItems);
+          return finalItems;
+        }
+
+        // Check metadata backup
+        const { data: setRow } = await supabase
+          .from('settings')
+          .select('metadata')
+          .eq('id', SETTINGS_ROW_ID)
+          .maybeSingle();
+
+        if (setRow?.metadata?.production_items && Array.isArray(setRow.metadata.production_items)) {
+          const metaItems = setRow.metadata.production_items as ProductionItem[];
+          if (metaItems.length > 0) {
+            saveLocalProductionItems(metaItems);
+            return metaItems;
+          }
         }
       } catch (err) {
         console.warn('Error fetching production items from Supabase, using local:', err);
       }
     }
 
-    return getLocalProductionItems();
+    return local;
   },
 
   async createItem(item: Partial<ProductionItem>): Promise<ProductionItem | null> {
-    const newId = `mat-${Date.now()}`;
-    const status = (item.current_quantity ?? 0) <= 0
-      ? 'out_of_stock'
-      : (item.current_quantity ?? 0) <= (item.minimum_quantity ?? 5)
-      ? 'low_stock'
-      : 'available';
+    const newId = safeUuid();
+    const curr = Number(item.current_quantity ?? 0);
+    const min = Number(item.minimum_quantity ?? 5);
+    const cost = Number(item.cost ?? 0);
+    const status = calculateStatus(curr, min);
 
     const localItem: ProductionItem = {
       id: newId,
@@ -73,9 +135,9 @@ export const productionService = {
       description: item.description || null,
       category: item.category || 'Varios',
       unit: item.unit || 'unidades',
-      current_quantity: item.current_quantity || 0,
-      minimum_quantity: item.minimum_quantity || 5,
-      cost: item.cost || 0,
+      current_quantity: curr,
+      minimum_quantity: min,
+      cost,
       supplier: item.supplier || null,
       status,
       created_at: new Date().toISOString(),
@@ -89,26 +151,45 @@ export const productionService = {
         const { data, error } = await supabase
           .from('production_items')
           .insert({
-            name: item.name,
-            description: item.description || null,
-            category: item.category || 'Varios',
-            unit: item.unit || 'unidades',
-            current_quantity: item.current_quantity || 0,
-            minimum_quantity: item.minimum_quantity || 5,
-            cost: item.cost || 0,
-            supplier: item.supplier || null,
-            status,
+            id: newId,
+            name: localItem.name,
+            description: localItem.description,
+            category: localItem.category,
+            unit: localItem.unit,
+            current_quantity: localItem.current_quantity,
+            minimum_quantity: localItem.minimum_quantity,
+            unit_cost: cost,
+            supplier: localItem.supplier,
+            active: true,
           })
           .select()
           .single();
 
         if (!error && data) {
-          const fresh = getLocalProductionItems().map((i) => i.id === newId ? data : i);
+          const freshItem: ProductionItem = {
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            category: data.category,
+            unit: data.unit,
+            current_quantity: Number(data.current_quantity) || 0,
+            minimum_quantity: Number(data.minimum_quantity) || 0,
+            cost: Number(data.unit_cost) || 0,
+            supplier: data.supplier,
+            status: calculateStatus(Number(data.current_quantity) || 0, Number(data.minimum_quantity) || 0),
+            created_at: data.created_at,
+          };
+          const fresh = getLocalProductionItems().map((i) => (i.id === newId ? freshItem : i));
           saveLocalProductionItems(fresh);
-          return data;
+          await this.syncToMetadata();
+          return freshItem;
+        } else if (error) {
+          console.warn('Production insert note, syncing to metadata:', error.message);
+          await this.syncToMetadata();
         }
       } catch (err) {
         console.error('Error creating production item in Supabase:', err);
+        await this.syncToMetadata();
       }
     }
 
@@ -117,14 +198,13 @@ export const productionService = {
 
   async updateItem(id: string, updates: Partial<ProductionItem>): Promise<ProductionItem | null> {
     const current = getLocalProductionItems();
+    let updatedTarget: ProductionItem | null = null;
+
     const updated = current.map((it) => {
       if (it.id === id) {
         const merged = { ...it, ...updates };
-        merged.status = merged.current_quantity <= 0
-          ? 'out_of_stock'
-          : merged.current_quantity <= merged.minimum_quantity
-          ? 'low_stock'
-          : 'available';
+        merged.status = calculateStatus(merged.current_quantity, merged.minimum_quantity);
+        updatedTarget = merged;
         return merged;
       }
       return it;
@@ -134,24 +214,51 @@ export const productionService = {
 
     if (supabase && isSupabaseConfigured) {
       try {
+        const payload: any = {};
+        if (updates.name !== undefined) payload.name = updates.name;
+        if (updates.description !== undefined) payload.description = updates.description;
+        if (updates.category !== undefined) payload.category = updates.category;
+        if (updates.unit !== undefined) payload.unit = updates.unit;
+        if (updates.current_quantity !== undefined) payload.current_quantity = Number(updates.current_quantity);
+        if (updates.minimum_quantity !== undefined) payload.minimum_quantity = Number(updates.minimum_quantity);
+        if (updates.cost !== undefined) payload.unit_cost = Number(updates.cost);
+        if (updates.supplier !== undefined) payload.supplier = updates.supplier;
+
         const { data, error } = await supabase
           .from('production_items')
-          .update(updates)
+          .update(payload)
           .eq('id', id)
           .select()
-          .single();
+          .maybeSingle();
 
         if (!error && data) {
-          const fresh = getLocalProductionItems().map((i) => i.id === id ? data : i);
+          const freshItem: ProductionItem = {
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            category: data.category,
+            unit: data.unit,
+            current_quantity: Number(data.current_quantity) || 0,
+            minimum_quantity: Number(data.minimum_quantity) || 0,
+            cost: Number(data.unit_cost) || 0,
+            supplier: data.supplier,
+            status: calculateStatus(Number(data.current_quantity) || 0, Number(data.minimum_quantity) || 0),
+            created_at: data.created_at,
+          };
+          const fresh = getLocalProductionItems().map((i) => (i.id === id ? freshItem : i));
           saveLocalProductionItems(fresh);
-          return data;
+          await this.syncToMetadata();
+          return freshItem;
+        } else {
+          await this.syncToMetadata();
         }
       } catch (err) {
         console.error('Error updating production item in Supabase:', err);
+        await this.syncToMetadata();
       }
     }
 
-    return updated.find((it) => it.id === id) || null;
+    return updatedTarget;
   },
 
   async deleteItem(id: string): Promise<boolean> {
@@ -161,12 +268,11 @@ export const productionService = {
 
     if (supabase && isSupabaseConfigured) {
       try {
-        await supabase.from('production_movements').delete().eq('item_id', id);
-        await supabase.from('product_production_items').delete().eq('production_item_id', id);
-        const { error } = await supabase.from('production_items').delete().eq('id', id);
-        if (error) console.error('Error deleting production item in Supabase:', error);
+        await supabase.from('production_items').delete().eq('id', id);
+        await this.syncToMetadata();
       } catch (err) {
         console.error('Error deleting production item in Supabase:', err);
+        await this.syncToMetadata();
       }
     }
 
@@ -188,32 +294,16 @@ export const productionService = {
         ? target.current_quantity + quantity
         : Math.max(0, target.current_quantity - quantity);
 
-    const status =
-      newQuantity <= 0
-        ? 'out_of_stock'
-        : newQuantity <= target.minimum_quantity
-        ? 'low_stock'
-        : 'available';
+    const status = calculateStatus(newQuantity, target.minimum_quantity);
 
     if (supabase && isSupabaseConfigured) {
       try {
         await supabase
-          .from('production_movements')
-          .insert({
-            item_id: itemId,
-            movement_type: type,
-            quantity,
-            reason,
-          });
-
-        await supabase
           .from('production_items')
-          .update({ current_quantity: newQuantity, status })
+          .update({ current_quantity: newQuantity })
           .eq('id', itemId);
-
-        return true;
       } catch (err) {
-        console.error('Error recording movement in Supabase:', err);
+        console.error('Error updating quantity in Supabase:', err);
       }
     }
 
@@ -234,45 +324,10 @@ export const productionService = {
   },
 
   async getMovements(): Promise<ProductionMovement[]> {
-    if (supabase && isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from('production_movements')
-          .select(`
-            *,
-            item:production_items(name)
-          `)
-          .order('created_at', { ascending: false });
-
-        if (!error && data && data.length > 0) {
-          return data.map((d: any) => ({
-            ...d,
-            item_name: d.item?.name || 'Insumo',
-          }));
-        }
-      } catch (err) {
-        console.warn('Error fetching movements from Supabase:', err);
-      }
-    }
-
     return getLocalMovements();
   },
 
   async getProductMaterials(productId: string): Promise<ProductProductionItem[]> {
-    if (supabase && isSupabaseConfigured) {
-      try {
-        const { data } = await supabase
-          .from('product_production_items')
-          .select(`
-            *,
-            item:production_items(*)
-          `)
-          .eq('product_id', productId);
-
-        if (data) return data;
-      } catch (err) {}
-    }
-
     try {
       const raw = localStorage.getItem(LOCAL_PROD_RELATIONS_KEY);
       if (raw) {
@@ -280,7 +335,6 @@ export const productionService = {
         return all.filter((r) => r.product_id === productId);
       }
     } catch (e) {}
-
     return [];
   },
 
@@ -288,28 +342,6 @@ export const productionService = {
     productId: string,
     materials: { production_item_id: string; quantity_required: number }[]
   ): Promise<boolean> {
-    if (supabase && isSupabaseConfigured) {
-      try {
-        await supabase
-          .from('product_production_items')
-          .delete()
-          .eq('product_id', productId);
-
-        if (materials.length > 0) {
-          await supabase.from('product_production_items').insert(
-            materials.map((m) => ({
-              product_id: productId,
-              production_item_id: m.production_item_id,
-              quantity_required: m.quantity_required,
-            }))
-          );
-        }
-        return true;
-      } catch (err) {
-        console.error('Error saving product materials in Supabase:', err);
-      }
-    }
-
     try {
       const raw = localStorage.getItem(LOCAL_PROD_RELATIONS_KEY);
       let all: ProductProductionItem[] = raw ? JSON.parse(raw) : [];
@@ -330,15 +362,38 @@ export const productionService = {
   async deleteAllItems(): Promise<boolean> {
     if (supabase && isSupabaseConfigured) {
       try {
-        await supabase.from('production_movements').delete().neq('id', 'placeholder');
-        await supabase.from('product_production_items').delete().neq('id', 'placeholder');
-        await supabase.from('production_items').delete().neq('id', 'placeholder');
+        await supabase.from('production_items').delete().neq('id', 'keep-all-placeholder');
       } catch (err) {
         console.warn('Error clearing items in Supabase:', err);
       }
     }
     saveLocalProductionItems([]);
     saveLocalMovements([]);
+    await this.syncToMetadata();
     return true;
+  },
+
+  async syncToMetadata() {
+    if (!supabase || !isSupabaseConfigured) return;
+    try {
+      const { data: setRow } = await supabase
+        .from('settings')
+        .select('metadata')
+        .eq('id', SETTINGS_ROW_ID)
+        .maybeSingle();
+
+      const existingMeta = setRow?.metadata || {};
+      const updatedMeta = {
+        ...existingMeta,
+        production_items: getLocalProductionItems(),
+      };
+
+      await supabase
+        .from('settings')
+        .update({ metadata: updatedMeta })
+        .eq('id', SETTINGS_ROW_ID);
+    } catch (e) {
+      console.warn('Error syncing production items to settings metadata:', e);
+    }
   },
 };

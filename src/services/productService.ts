@@ -37,11 +37,44 @@ function saveLocalProducts(products: Product[], notify: boolean = true) {
     if (notify) {
       notifyDataUpdate();
     }
-  } catch (e) {
-    console.error('Error saving local products:', e);
+  } catch (e: any) {
+    console.warn('LocalStorage quota limit reached. Optimizing image payload for local cache:', e);
+    try {
+      // Slim down heavy base64 strings so unlimited products fit in localStorage
+      const slim = products.map((p) => ({
+        ...p,
+        images: (p.images || []).map((img, idx) => ({
+          ...img,
+          // Retain full URL if remote, but truncate secondary huge base64 strings
+          image_url:
+            img.image_url && img.image_url.startsWith('data:') && img.image_url.length > 25000 && idx > 0
+              ? (p.images?.[0]?.image_url || '')
+              : img.image_url,
+        })),
+      }));
+      localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(slim));
+      if (notify) notifyDataUpdate();
+    } catch (err2) {
+      // Second emergency fallback for very large product catalogs
+      try {
+        const emergencySlim = products.map((p) => ({
+          ...p,
+          images: (p.images || []).map((img) => ({
+            ...img,
+            image_url:
+              img.image_url && img.image_url.startsWith('data:') && img.image_url.length > 15000
+                ? ''
+                : img.image_url,
+          })),
+        }));
+        localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(emergencySlim));
+        if (notify) notifyDataUpdate();
+      } catch (err3) {
+        console.error('Critical quota error saving local products:', err3);
+      }
+    }
   }
 }
-
 
 export function generateUuid(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -137,11 +170,12 @@ export const productService = {
             };
           });
 
-          // Supabase is the single source of truth across all devices.
-          // Only preserve local items if they were created offline and marked savedLocally.
+          // Retain local products that have not yet been reflected in Supabase so newly created items NEVER disappear
           const localProducts = getLocalProducts();
-          const offlineOnly = localProducts.filter((lp: any) => lp.savedLocally && !products.some((sp) => sp.id === lp.id));
-          const allProducts = [...products, ...offlineOnly];
+          const localOnly = localProducts.filter(
+            (lp) => !products.some((sp) => sp.id === lp.id || sp.slug === lp.slug)
+          );
+          const allProducts = [...products, ...localOnly];
 
           let filtered = allProducts;
           if (params?.categorySlug) {
@@ -160,7 +194,7 @@ export const productService = {
             );
           }
 
-          // Cache in local storage for fast fallback (silent, do not trigger refresh loop)
+          // Cache in local storage for fast fallback
           saveLocalProducts(allProducts, false);
           return filtered;
         }
@@ -311,13 +345,25 @@ export const productService = {
           .select()
           .maybeSingle();
 
-        // If insert failed due to column not existing in Supabase yet, retry without new optional columns
+        // Retry 1: Category FK, UUID syntax or relation error -> Retry with category_id = null
+        if (prodError && (prodError.message?.includes('category') || prodError.message?.includes('foreign key') || prodError.message?.includes('uuid') || prodError.code === '22P02')) {
+          console.warn('Retrying product insert with category_id = null due to FK/UUID mismatch:', prodError.message);
+          const sanitized = { ...insertPayload, category_id: null };
+          const retryRes = await supabase.from('products').insert(sanitized).select().maybeSingle();
+          if (!retryRes.error && retryRes.data) {
+            insertedProduct = retryRes.data;
+            prodError = null;
+          }
+        }
+
+        // Retry 2: If insert failed due to column not existing in Supabase yet, retry without newer columns
         if (prodError && (prodError.message?.includes('variants') || prodError.message?.includes('column') || prodError.message?.includes('availability_type'))) {
           console.warn('Retrying insert without newer columns:', prodError.message);
-          const sanitizedPayload = { ...insertPayload };
+          const sanitizedPayload = { ...insertPayload, category_id: null };
           delete sanitizedPayload.variants;
           delete sanitizedPayload.availability_type;
           delete sanitizedPayload.preparation_days;
+          delete sanitizedPayload.metadata;
           const retryRes = await supabase
             .from('products')
             .insert(sanitizedPayload)
@@ -376,16 +422,34 @@ export const productService = {
           const validImageRows = imageUploadResults.filter((img) => Boolean(img.image_url));
           if (validImageRows.length > 0) {
             try {
-              const { data: batchData } = await supabase
+              const rowsToInsert = validImageRows.map((r, i) => ({
+                id: generateUuid(),
+                product_id: productId,
+                image_url: r.image_url,
+                position: r.position,
+              }));
+              const { data: batchData, error: imgBatchError } = await supabase
                 .from('product_images')
-                .insert(validImageRows)
+                .insert(rowsToInsert)
                 .select();
-              if (batchData && batchData.length > 0) {
+
+              if (!imgBatchError && batchData && batchData.length > 0) {
                 uploadedImages.push(...batchData);
               } else {
-                uploadedImages.push(
-                  ...validImageRows.map((r, i) => ({ id: `img-${Date.now()}-${i}`, ...r }))
-                );
+                // If explicit ID failed, retry without id
+                const retryRows = validImageRows.map((r) => ({
+                  product_id: productId,
+                  image_url: r.image_url,
+                  position: r.position,
+                }));
+                const retryRes = await supabase.from('product_images').insert(retryRows).select();
+                if (retryRes.data && retryRes.data.length > 0) {
+                  uploadedImages.push(...retryRes.data);
+                } else {
+                  uploadedImages.push(
+                    ...validImageRows.map((r, i) => ({ id: `img-${Date.now()}-${i}`, ...r }))
+                  );
+                }
               }
             } catch {
               uploadedImages.push(
@@ -452,6 +516,10 @@ export const productService = {
       },
       images: processedImages,
     };
+
+    if (!createdProductInDb) {
+      (finalProduct as any).savedLocally = true;
+    }
 
     // Save into local cache so it always appears instantly without reload errors
     const currentLocal = getLocalProducts().filter((p) => p.id !== finalProduct.id);

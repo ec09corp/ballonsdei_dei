@@ -1,32 +1,57 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Order, OrderItem, OrderStatus, PaymentStatus } from '../types/database';
 
-const LOCAL_ORDERS_KEY = 'balloonsdei_orders_v3';
+const LOCAL_ORDERS_KEY = 'balloonsdei_orders_v4';
+const SETTINGS_ROW_ID = '75b13ef3-b885-462e-a110-f2fccbc47530';
 
-const INITIAL_ORDERS: Order[] = [];
+function safeUuid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 function getLocalOrders(): Order[] {
   try {
     const raw = localStorage.getItem(LOCAL_ORDERS_KEY);
-    if (raw !== null) return JSON.parse(raw);
+    if (raw !== null) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
   } catch (e) {
     console.error('Error reading local orders:', e);
   }
-  return INITIAL_ORDERS;
+  return [];
 }
 
 function saveLocalOrders(orders: Order[]) {
   try {
     localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(orders));
   } catch (e) {
-    console.error('Error saving local orders:', e);
+    console.warn('Storage quota warning in orders, slimming entries:', e);
+    try {
+      const slim = orders.map((o) => ({
+        ...o,
+        receipt_url: o.receipt_url?.slice(0, 150) || null,
+        order_items: o.order_items?.map((it) => ({
+          ...it,
+          image_url: undefined,
+        })),
+      }));
+      localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(slim));
+    } catch (err2) {
+      console.error('Failed to save even slim local orders:', err2);
+    }
   }
 }
 
 export const orderService = {
   async getOrders(): Promise<Order[]> {
     const localOrders = getLocalOrders();
-    const localMap = new Map(localOrders.map((o) => [o.order_number, o]));
 
     if (supabase && isSupabaseConfigured) {
       try {
@@ -38,16 +63,66 @@ export const orderService = {
           `)
           .order('created_at', { ascending: false });
 
-        if (!error && data) {
-          // Merge any locally preserved receipt_urls if Supabase column was missing
-          return (data as any[]).map((supOrder) => {
-            const local = localMap.get(supOrder.order_number);
+        if (!error && Array.isArray(data)) {
+          const mappedOrders: Order[] = data.map((d: any) => {
+            const rawNum = d.order_number !== undefined ? String(d.order_number).padStart(5, '0') : d.id.slice(0, 6);
+            const formattedOrderNumber = `BD-${rawNum}`;
+
             return {
-              ...supOrder,
-              receipt_url: supOrder.receipt_url || local?.receipt_url || null,
-              receipt_ref: supOrder.receipt_ref || local?.receipt_ref || null,
+              id: d.id,
+              order_number: formattedOrderNumber,
+              customer_id: d.customer_id || null,
+              customer_name: d.customer_name || 'Cliente',
+              customer_email: d.customer_email || '',
+              customer_phone: d.customer_phone || '',
+              delivery_address: d.customer_address || d.delivery_address || 'Entrega a coordinar',
+              delivery_date: d.desired_date || d.delivery_date || new Date(d.created_at).toISOString().split('T')[0],
+              delivery_type: (d.delivery_method || d.delivery_type || 'delivery') as 'delivery' | 'pickup',
+              payment_method: d.payment_method || 'Yappy',
+              payment_status: (d.payment_status || 'pending') as PaymentStatus,
+              status: (d.order_status || d.status || 'pending') as OrderStatus,
+              subtotal: Number(d.subtotal) || 0,
+              total: Number(d.total) || 0,
+              notes: d.notes || '',
+              receipt_url: d.receipt_url || null,
+              receipt_ref: d.receipt_ref || null,
+              created_at: d.created_at,
+              order_items: Array.isArray(d.order_items)
+                ? d.order_items.map((it: any) => ({
+                    id: it.id,
+                    order_id: it.order_id,
+                    product_id: it.product_id,
+                    product_name: it.product_name,
+                    unit_price: Number(it.unit_price) || 0,
+                    quantity: Number(it.quantity) || 1,
+                    total_price: (Number(it.unit_price) || 0) * (Number(it.quantity) || 1),
+                  }))
+                : [],
             };
           });
+
+          // Merge with any local orders not yet reflected in remote
+          const missingLocals = localOrders.filter(
+            (loc) => !mappedOrders.some((rem) => rem.id === loc.id || rem.order_number === loc.order_number)
+          );
+          const finalOrders = [...mappedOrders, ...missingLocals];
+          saveLocalOrders(finalOrders);
+          return finalOrders;
+        }
+
+        // Check metadata backup
+        const { data: setRow } = await supabase
+          .from('settings')
+          .select('metadata')
+          .eq('id', SETTINGS_ROW_ID)
+          .maybeSingle();
+
+        if (setRow?.metadata?.orders && Array.isArray(setRow.metadata.orders)) {
+          const metaOrders = setRow.metadata.orders as Order[];
+          if (metaOrders.length > 0) {
+            saveLocalOrders(metaOrders);
+            return metaOrders;
+          }
         }
       } catch (err) {
         console.warn('Error fetching orders from Supabase, using local:', err);
@@ -75,137 +150,20 @@ export const orderService = {
   ): Promise<{ order: Order | null; error: Error | null }> {
     const subtotal = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
     const total = subtotal + (orderData.delivery_type === 'delivery' ? deliveryFee : 0);
-    const orderNumber = `BD-${Date.now().toString().slice(-6)}`;
-    const newId = `ord-${Date.now()}`;
+    const newId = safeUuid();
+    const tempOrderNumber = `BD-${Date.now().toString().slice(-5)}`;
 
-    // Format notes to include receipt info so it's always preserved in database
     let formattedNotes = orderData.notes || '';
     if (orderData.receipt_ref) {
-      formattedNotes += ` [Comprobante Yappy Ref: ${orderData.receipt_ref}]`;
+      formattedNotes += ` [Comprobante Ref: ${orderData.receipt_ref}]`;
     }
     if (orderData.receipt_url && !formattedNotes.includes('[Comprobante Adjunto]')) {
-      formattedNotes += ` [Comprobante Adjunto: Sí]`;
+      formattedNotes += ` [Comprobante: Sí]`;
     }
 
-    if (supabase && isSupabaseConfigured) {
-      try {
-        // 1. Find or create customer
-        let customerId: string | null = null;
-        try {
-          if (orderData.customer_email) {
-            const { data: existingCust } = await supabase
-              .from('customers')
-              .select('id')
-              .eq('email', orderData.customer_email)
-              .maybeSingle();
-
-            if (existingCust) {
-              customerId = existingCust.id;
-            }
-          }
-
-          if (!customerId) {
-            const { data: customerData } = await supabase
-              .from('customers')
-              .insert({
-                full_name: orderData.customer_name,
-                email: orderData.customer_email || null,
-                phone: orderData.customer_phone,
-                address: orderData.delivery_address,
-              })
-              .select()
-              .maybeSingle();
-
-            if (customerData) customerId = customerData.id;
-          }
-        } catch (cErr) {
-          console.warn('Customer upsert non-critical warning:', cErr);
-        }
-
-        // 2. Insert order with receipt fields
-        let insertedOrder: any = null;
-        const baseOrderPayload = {
-          order_number: orderNumber,
-          customer_id: customerId,
-          customer_name: orderData.customer_name,
-          customer_email: orderData.customer_email,
-          customer_phone: orderData.customer_phone,
-          delivery_address: orderData.delivery_address,
-          delivery_date: orderData.delivery_date,
-          delivery_type: orderData.delivery_type,
-          payment_method: orderData.payment_method,
-          payment_status: 'pending' as PaymentStatus,
-          status: 'pending' as OrderStatus,
-          subtotal,
-          total,
-          notes: formattedNotes,
-        };
-
-        try {
-          const { data, error } = await supabase
-            .from('orders')
-            .insert({
-              ...baseOrderPayload,
-              receipt_url: orderData.receipt_url || null,
-              receipt_ref: orderData.receipt_ref || null,
-            })
-            .select()
-            .single();
-
-          if (error) throw error;
-          insertedOrder = data;
-        } catch (firstInsertErr: any) {
-          // If Supabase rejected receipt_url column (e.g. column does not exist yet), insert without it
-          console.warn('Orders insert with receipt_url notice, retrying base payload:', firstInsertErr?.message);
-          const { data: retryData, error: retryErr } = await supabase
-            .from('orders')
-            .insert(baseOrderPayload)
-            .select()
-            .single();
-
-          if (retryErr) throw retryErr;
-          insertedOrder = retryData;
-        }
-
-
-        // 3. Insert order items
-        const itemsToInsert = items.map((it) => ({
-          order_id: insertedOrder.id,
-          product_id: it.product_id,
-          product_name: it.product_name,
-          unit_price: it.unit_price,
-          quantity: it.quantity,
-          total_price: it.unit_price * it.quantity,
-          image_url: it.image_url || null,
-        }));
-
-        const { data: insertedItems } = await supabase
-          .from('order_items')
-          .insert(itemsToInsert)
-          .select();
-
-        const completeOrder: Order = {
-          ...insertedOrder,
-          receipt_url: orderData.receipt_url || null,
-          receipt_ref: orderData.receipt_ref || null,
-          order_items: insertedItems || itemsToInsert,
-        };
-
-        // Cache locally as well for immediate admin display
-        const currentOrders = getLocalOrders();
-        saveLocalOrders([completeOrder, ...currentOrders]);
-
-        return { order: completeOrder, error: null };
-      } catch (err: any) {
-        console.error('Error creating order in Supabase:', err);
-        // Fall back to local creation
-      }
-    }
-
-    // Local fallback
-    const newOrder: Order = {
+    const localNewOrder: Order = {
       id: newId,
-      order_number: orderNumber,
+      order_number: tempOrderNumber,
       customer_name: orderData.customer_name,
       customer_email: orderData.customer_email,
       customer_phone: orderData.customer_phone,
@@ -223,73 +181,165 @@ export const orderService = {
       created_at: new Date().toISOString(),
       order_items: items.map((it, idx) => ({
         ...it,
-        id: `item-${Date.now()}-${idx}`,
+        id: safeUuid(),
         order_id: newId,
       })),
     };
 
-    const current = getLocalOrders();
-    saveLocalOrders([newOrder, ...current]);
-    return { order: newOrder, error: null };
-  },
+    const currentOrders = getLocalOrders();
+    saveLocalOrders([localNewOrder, ...currentOrders]);
 
-  async updateOrderStatus(orderId: string, status: OrderStatus): Promise<boolean> {
     if (supabase && isSupabaseConfigured) {
       try {
-        const { error } = await supabase
+        // Insert into orders table without order_number (since order_number is an identity GENERATED ALWAYS column in PostgreSQL)
+        const orderInsertPayload = {
+          id: newId,
+          customer_name: orderData.customer_name,
+          customer_phone: orderData.customer_phone,
+          customer_email: orderData.customer_email || null,
+          customer_address: orderData.delivery_address,
+          desired_date: orderData.delivery_date,
+          delivery_method: orderData.delivery_type,
+          payment_method: orderData.payment_method,
+          payment_status: 'pending',
+          order_status: 'pending',
+          subtotal,
+          delivery_fee: deliveryFee,
+          total,
+          notes: formattedNotes,
+        };
+
+        const { data: insertedOrder, error: orderErr } = await supabase
           .from('orders')
-          .update({ status })
-          .eq('id', orderId);
-        if (!error) return true;
-      } catch (err) {
-        console.error('Error updating order status in Supabase:', err);
+          .insert(orderInsertPayload)
+          .select()
+          .single();
+
+        if (!orderErr && insertedOrder) {
+          const actualOrderNumber = insertedOrder.order_number
+            ? `BD-${String(insertedOrder.order_number).padStart(5, '0')}`
+            : tempOrderNumber;
+
+          // Insert order items into order_items table
+          const itemsPayload = items.map((it) => ({
+            id: safeUuid(),
+            order_id: insertedOrder.id,
+            product_id: it.product_id?.length === 36 ? it.product_id : null,
+            product_name: it.product_name || 'Arreglo Floral',
+            quantity: it.quantity || 1,
+            unit_price: it.unit_price || 0,
+          }));
+
+          await supabase.from('order_items').insert(itemsPayload);
+
+          const completedOrder: Order = {
+            ...localNewOrder,
+            id: insertedOrder.id,
+            order_number: actualOrderNumber,
+            created_at: insertedOrder.created_at,
+          };
+
+          const fresh = getLocalOrders().map((o) => (o.id === newId ? completedOrder : o));
+          saveLocalOrders(fresh);
+          await this.syncToMetadata();
+          return { order: completedOrder, error: null };
+        } else {
+          console.warn('Orders direct insert notice, syncing to metadata:', orderErr?.message);
+          await this.syncToMetadata();
+        }
+      } catch (err: any) {
+        console.error('Error inserting order into Supabase:', err);
+        await this.syncToMetadata();
       }
     }
 
+    await this.syncToMetadata();
+    return { order: localNewOrder, error: null };
+  },
+
+  async updateOrderStatus(orderId: string, status: OrderStatus): Promise<boolean> {
     const current = getLocalOrders();
-    const updated = current.map((ord) =>
-      ord.id === orderId ? { ...ord, status } : ord
-    );
+    const updated = current.map((ord) => (ord.id === orderId ? { ...ord, status } : ord));
     saveLocalOrders(updated);
+
+    if (supabase && isSupabaseConfigured) {
+      try {
+        await supabase
+          .from('orders')
+          .update({ order_status: status })
+          .eq('id', orderId);
+        await this.syncToMetadata();
+      } catch (err) {
+        console.error('Error updating order status in Supabase:', err);
+        await this.syncToMetadata();
+      }
+    }
+
     return true;
   },
 
   async updatePaymentStatus(orderId: string, payment_status: PaymentStatus): Promise<boolean> {
+    const current = getLocalOrders();
+    const updated = current.map((ord) => (ord.id === orderId ? { ...ord, payment_status } : ord));
+    saveLocalOrders(updated);
+
     if (supabase && isSupabaseConfigured) {
       try {
-        const { error } = await supabase
+        await supabase
           .from('orders')
           .update({ payment_status })
           .eq('id', orderId);
-        if (!error) return true;
+        await this.syncToMetadata();
       } catch (err) {
         console.error('Error updating payment status in Supabase:', err);
+        await this.syncToMetadata();
       }
     }
 
-    const current = getLocalOrders();
-    const updated = current.map((ord) =>
-      ord.id === orderId ? { ...ord, payment_status } : ord
-    );
-    saveLocalOrders(updated);
     return true;
   },
 
   async deleteOrder(orderId: string): Promise<boolean> {
-    if (supabase && isSupabaseConfigured) {
-      try {
-        await supabase.from('order_items').delete().eq('order_id', orderId);
-        const { error } = await supabase.from('orders').delete().eq('id', orderId);
-        if (!error) return true;
-      } catch (err) {
-        console.error('Error deleting order in Supabase:', err);
-      }
-    }
-
     const current = getLocalOrders();
     const filtered = current.filter((o) => o.id !== orderId);
     saveLocalOrders(filtered);
+
+    if (supabase && isSupabaseConfigured) {
+      try {
+        await supabase.from('order_items').delete().eq('order_id', orderId);
+        await supabase.from('orders').delete().eq('id', orderId);
+        await this.syncToMetadata();
+      } catch (err) {
+        console.error('Error deleting order in Supabase:', err);
+        await this.syncToMetadata();
+      }
+    }
+
     return true;
+  },
+
+  async syncToMetadata() {
+    if (!supabase || !isSupabaseConfigured) return;
+    try {
+      const { data: setRow } = await supabase
+        .from('settings')
+        .select('metadata')
+        .eq('id', SETTINGS_ROW_ID)
+        .maybeSingle();
+
+      const existingMeta = setRow?.metadata || {};
+      const updatedMeta = {
+        ...existingMeta,
+        orders: getLocalOrders(),
+      };
+
+      await supabase
+        .from('settings')
+        .update({ metadata: updatedMeta })
+        .eq('id', SETTINGS_ROW_ID);
+    } catch (e) {
+      console.warn('Error syncing orders to metadata:', e);
+    }
   },
 };
 

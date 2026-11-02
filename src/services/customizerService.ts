@@ -2,8 +2,20 @@ import { CustomizerElementItem, ArrangementDesignData } from '../types/customize
 import { DEFAULT_CUSTOMIZER_ELEMENTS } from '../data/defaultCustomizerElements';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
-const STORAGE_KEY = 'ballonsdei_customizer_elements_v1';
+const STORAGE_KEY = 'ballonsdei_customizer_elements_v2';
 const DESIGNS_STORAGE_KEY = 'ballonsdei_customizer_designs_v1';
+const SETTINGS_ROW_ID = '75b13ef3-b885-462e-a110-f2fccbc47530';
+
+function safeUuid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 class CustomizerService {
   private localElements: CustomizerElementItem[] = [];
@@ -19,10 +31,10 @@ class CustomizerService {
       if (stored !== null) {
         this.localElements = JSON.parse(stored);
       } else {
-        this.localElements = [];
+        this.localElements = [...DEFAULT_CUSTOMIZER_ELEMENTS];
       }
     } catch {
-      this.localElements = [];
+      this.localElements = [...DEFAULT_CUSTOMIZER_ELEMENTS];
     }
   }
 
@@ -31,7 +43,16 @@ class CustomizerService {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.localElements));
     } catch (e) {
-      console.warn('Error saving local elements:', e);
+      console.warn('Quota warning for customizer elements, trimming images:', e);
+      try {
+        const slim = this.localElements.map((el) => ({
+          ...el,
+          image_url: el.image_url?.length > 400 ? el.image_url.slice(0, 200) + '...' : el.image_url,
+        }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
+      } catch (err2) {
+        console.error('Failed to save even slim customizer elements:', err2);
+      }
     }
   }
 
@@ -51,20 +72,50 @@ class CustomizerService {
         }
 
         const { data, error } = await query;
-        if (!error && data) {
+        if (!error && Array.isArray(data) && data.length > 0) {
+          // Merge with any local elements not yet present in Supabase
+          const remoteList = data as CustomizerElementItem[];
+          const missingLocals = this.localElements.filter(
+            (local) => !remoteList.some((rem) => rem.id === local.id || rem.name === local.name)
+          );
+          const merged = [...remoteList, ...missingLocals];
           if (!category || category === 'all') {
-            this.localElements = data as CustomizerElementItem[];
+            this.localElements = merged;
             this.persistLocal();
           }
-          return data as CustomizerElementItem[];
+          return merged;
+        }
+
+        // Check fallback in settings.metadata
+        const { data: setRow } = await supabase
+          .from('settings')
+          .select('metadata')
+          .eq('id', SETTINGS_ROW_ID)
+          .maybeSingle();
+
+        if (setRow?.metadata?.customizer_elements && Array.isArray(setRow.metadata.customizer_elements)) {
+          const metaList = setRow.metadata.customizer_elements as CustomizerElementItem[];
+          if (metaList.length > 0) {
+            this.localElements = metaList;
+            this.persistLocal();
+            let res = [...metaList];
+            if (activeOnly) res = res.filter((e) => e.active);
+            if (category && category !== 'all') res = res.filter((e) => e.category === category);
+            return res;
+          }
         }
       } catch (err) {
-        // Fallback to local
+        console.warn('Error fetching customizer elements from Supabase:', err);
       }
     }
 
     // Local fallback
     let list = [...this.localElements];
+    if (list.length === 0) {
+      list = [...DEFAULT_CUSTOMIZER_ELEMENTS];
+      this.localElements = list;
+      this.persistLocal();
+    }
     if (activeOnly) {
       list = list.filter((i) => i.active);
     }
@@ -75,9 +126,13 @@ class CustomizerService {
   }
 
   async addElement(item: Omit<CustomizerElementItem, 'id' | 'created_at'>): Promise<CustomizerElementItem> {
+    const newId = safeUuid();
+    const finalImageUrl = item.image_url?.trim() || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=400&q=80';
+
     const newItem: CustomizerElementItem = {
       ...item,
-      id: `elem-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: newId,
+      image_url: finalImageUrl,
       created_at: new Date().toISOString(),
       order_index: item.order_index ?? this.localElements.length + 1,
     };
@@ -89,20 +144,34 @@ class CustomizerService {
       try {
         const { data, error } = await supabase
           .from('customizer_elements')
-          .insert(newItem)
+          .insert({
+            id: newId,
+            name: newItem.name,
+            category: newItem.category,
+            price: newItem.price || 0,
+            image_url: finalImageUrl,
+            available_colors: newItem.available_colors || [],
+            default_color: newItem.default_color || null,
+            active: newItem.active ?? true,
+            order_index: newItem.order_index || 1,
+          })
           .select()
           .maybeSingle();
 
         if (!error && data) {
-          const idx = this.localElements.findIndex((e) => e.id === newItem.id);
+          const idx = this.localElements.findIndex((e) => e.id === newId);
           if (idx !== -1) {
             this.localElements[idx] = data as CustomizerElementItem;
             this.persistLocal();
           }
           return data as CustomizerElementItem;
+        } else if (error) {
+          console.warn('Supabase customizer_elements insert note, updating metadata:', error.message);
+          await this.syncToSettingsMetadata();
         }
       } catch (err) {
         console.error('Error inserting customizer element into Supabase:', err);
+        await this.syncToSettingsMetadata();
       }
     }
 
@@ -118,9 +187,13 @@ class CustomizerService {
 
     if (supabase && isSupabaseConfigured) {
       try {
+        const payload: any = { ...updates };
+        delete payload.id;
+        delete payload.created_at;
+
         const { data, error } = await supabase
           .from('customizer_elements')
-          .update(updates)
+          .update(payload)
           .eq('id', id)
           .select()
           .maybeSingle();
@@ -131,9 +204,12 @@ class CustomizerService {
             this.persistLocal();
           }
           return data as CustomizerElementItem;
+        } else {
+          await this.syncToSettingsMetadata();
         }
       } catch (err) {
         console.error('Error updating customizer element in Supabase:', err);
+        await this.syncToSettingsMetadata();
       }
     }
 
@@ -146,10 +222,11 @@ class CustomizerService {
 
     if (supabase && isSupabaseConfigured) {
       try {
-        const { error } = await supabase.from('customizer_elements').delete().eq('id', id);
-        if (error) console.error('Error deleting customizer element in Supabase:', error);
+        await supabase.from('customizer_elements').delete().eq('id', id);
+        await this.syncToSettingsMetadata();
       } catch (err) {
         console.error('Error in deleteElement:', err);
+        await this.syncToSettingsMetadata();
       }
     }
 
@@ -162,7 +239,8 @@ class CustomizerService {
 
     if (supabase && isSupabaseConfigured) {
       try {
-        await supabase.from('customizer_elements').delete().neq('id', 'placeholder_keep');
+        await supabase.from('customizer_elements').delete().neq('id', 'keep-all-placeholder');
+        await this.syncToSettingsMetadata();
       } catch (err) {
         console.error('Error deleting all customizer elements in Supabase:', err);
       }
@@ -177,12 +255,55 @@ class CustomizerService {
 
     if (supabase && isSupabaseConfigured) {
       try {
-        await supabase.from('customizer_elements').delete().neq('id', 'keep-all');
-        await supabase.from('customizer_elements').insert(DEFAULT_CUSTOMIZER_ELEMENTS);
-      } catch {}
+        await supabase.from('customizer_elements').delete().neq('id', 'keep-all-placeholder');
+        for (const el of DEFAULT_CUSTOMIZER_ELEMENTS) {
+          await supabase.from('customizer_elements').insert({
+            id: safeUuid(),
+            name: el.name,
+            category: el.category,
+            price: el.price || 0,
+            image_url: el.image_url,
+            available_colors: el.available_colors || [],
+            default_color: el.default_color || null,
+            active: el.active ?? true,
+            order_index: el.order_index || 1,
+          });
+        }
+        await this.syncToSettingsMetadata();
+      } catch (err) {
+        console.warn('Error resetting defaults in Supabase:', err);
+        await this.syncToSettingsMetadata();
+      }
     }
 
     return this.localElements;
+  }
+
+  private async syncToSettingsMetadata() {
+    if (!supabase || !isSupabaseConfigured) return;
+    try {
+      const { data: setRow } = await supabase
+        .from('settings')
+        .select('metadata')
+        .eq('id', SETTINGS_ROW_ID)
+        .maybeSingle();
+
+      const existingMeta = setRow?.metadata || {};
+      const updatedMeta = {
+        ...existingMeta,
+        customizer_elements: this.localElements.map((el) => ({
+          ...el,
+          image_url: el.image_url?.startsWith('data:') ? el.image_url.slice(0, 500) : el.image_url,
+        })),
+      };
+
+      await supabase
+        .from('settings')
+        .update({ metadata: updatedMeta })
+        .eq('id', SETTINGS_ROW_ID);
+    } catch (e) {
+      console.warn('Error syncing customizer elements to settings metadata:', e);
+    }
   }
 
   async saveDesign(design: ArrangementDesignData): Promise<string> {
@@ -200,7 +321,7 @@ class CustomizerService {
           id: designId,
           product_id: design.productId,
           design_data: design,
-          preview_image: design.previewImage,
+          preview_image: design.previewImage?.slice(0, 500),
           total_price: design.totalPrice,
           created_at: new Date().toISOString(),
         });

@@ -42,7 +42,18 @@ function saveLocalCategories(cats: Category[], notify: boolean = true) {
       notifyDataUpdate();
     }
   } catch (e) {
-    console.error('Error saving local categories:', e);
+    console.warn('LocalStorage quota limit reached in saveLocalCategories, optimizing:', e);
+    try {
+      // If images are data URLs, omit heavy strings from local storage
+      const slim = cats.map((c) => ({
+        ...c,
+        image_url: c.image_url && c.image_url.startsWith('data:') && c.image_url.length > 20000 ? '' : c.image_url,
+      }));
+      localStorage.setItem(LOCAL_CATEGORIES_KEY, JSON.stringify(slim));
+      if (notify) notifyDataUpdate();
+    } catch (err2) {
+      console.error('Critical quota error in categories:', err2);
+    }
   }
 }
 
@@ -111,9 +122,11 @@ export const categoryService = {
         if (!error && data) {
           const dbCats = data as Category[];
           const localCats = getLocalCategories();
-          // Supabase is the source of truth across all devices.
-          const offlineOnly = localCats.filter((lc: any) => lc.savedLocally && !dbCats.some((dc) => dc.id === lc.id));
-          const allCats = [...dbCats, ...offlineOnly].sort(
+          // Retain local categories that haven't synced to Supabase yet so newly created items NEVER disappear
+          const localOnly = localCats.filter(
+            (lc) => !dbCats.some((dc) => dc.id === lc.id || dc.slug === lc.slug)
+          );
+          const allCats = [...dbCats, ...localOnly].sort(
             (a, b) => (a.display_order || 99) - (b.display_order || 99)
           );
           saveLocalCategories(allCats, false);
@@ -144,19 +157,64 @@ export const categoryService = {
 
     if (supabase && isSupabaseConfigured) {
       try {
-        const { data, error } = await supabase
+        const payload: any = {
+          name: cat.name,
+          slug,
+          description: cat.description || null,
+          image_url: cat.image_url || null,
+          active: cat.active ?? true,
+          display_order: cat.display_order || 99,
+        };
+
+        // Try primary insert
+        let { data, error } = await supabase
           .from('categories')
-          .insert({
-            id: newId,
-            name: cat.name,
-            slug,
-            description: cat.description || null,
-            image_url: cat.image_url || null,
-            active: cat.active ?? true,
-            display_order: cat.display_order || 99,
-          })
+          .insert({ id: newId, ...payload })
           .select()
           .maybeSingle();
+
+        // Retry 1: UUID schema mismatch -> Retry with standard UUID
+        if (error && (error.message?.includes('uuid') || error.code === '22P02')) {
+          const retryWithUuid = await supabase
+            .from('categories')
+            .insert({ id: crypto.randomUUID ? crypto.randomUUID() : newId, ...payload })
+            .select()
+            .maybeSingle();
+
+          if (!retryWithUuid.error && retryWithUuid.data) {
+            data = retryWithUuid.data;
+            error = null;
+          } else {
+            // Retry without explicit ID (let DB default generate primary key)
+            const retryNoId = await supabase
+              .from('categories')
+              .insert(payload)
+              .select()
+              .maybeSingle();
+            if (!retryNoId.error && retryNoId.data) {
+              data = retryNoId.data;
+              error = null;
+            }
+          }
+        }
+
+        // Retry 2: Optional column does not exist in DB yet
+        if (error && error.message?.includes('column')) {
+          const minimalPayload = {
+            name: cat.name,
+            slug,
+            active: cat.active ?? true,
+          };
+          const retryMin = await supabase
+            .from('categories')
+            .insert(minimalPayload)
+            .select()
+            .maybeSingle();
+          if (!retryMin.error && retryMin.data) {
+            data = retryMin.data;
+            error = null;
+          }
+        }
 
         if (!error && data) {
           createdInDb = data;
@@ -177,6 +235,10 @@ export const categoryService = {
       active: cat.active ?? true,
       display_order: cat.display_order || 99,
     };
+
+    if (!createdInDb) {
+      (newCategory as any).savedLocally = true;
+    }
 
     const current = getLocalCategories().filter((c) => c.id !== newCategory.id);
     const updated = [...current, newCategory];

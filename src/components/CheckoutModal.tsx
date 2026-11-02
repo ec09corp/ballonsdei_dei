@@ -109,6 +109,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setAvailableExtras(extrasService.getExtras());
+      extrasService.syncFromSupabase().then((fresh) => {
+        if (fresh && fresh.length > 0) setAvailableExtras(fresh);
+      }).catch(() => {});
       if (!deliveryDate || deliveryDate < minDate) {
         setDeliveryDate(minDate);
       }
