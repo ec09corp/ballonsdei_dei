@@ -54,7 +54,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'products', label: 'Productos', icon: Package },
     { id: 'categories', label: 'Categorías', icon: FolderTree },
     { id: 'extras', label: 'Implementos & Extras', icon: Sparkles },
-    { id: 'customizer', label: 'Personalización de arreglos', icon: Sparkles },
     { id: 'inventory', label: 'Inventario', icon: Warehouse },
     { id: 'production', label: 'Producción & Insumos', icon: Hammer },
     { id: 'rentals', label: 'Alquileres & Reservas', icon: CalendarRange },

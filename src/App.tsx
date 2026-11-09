@@ -25,9 +25,7 @@ import { AdminInventory } from './components/admin/AdminInventory';
 import { AdminProduction } from './components/admin/AdminProduction';
 import { AdminRentals } from './components/admin/AdminRentals';
 import { AdminSettings } from './components/admin/AdminSettings';
-import { AdminCustomizerElements } from './components/admin/AdminCustomizerElements';
 import { AdminExtras } from './components/admin/AdminExtras';
-import { ArrangementCustomizerModal } from './components/customizer/ArrangementCustomizerModal';
 import { MobileBallonsdeiAtmosphere } from './components/MobileBallonsdeiAtmosphere';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 
@@ -47,6 +45,7 @@ import {
   isProductReservation 
 } from './types/database';
 import { INITIAL_SETTINGS } from './lib/mockData';
+import { LegalModal } from './components/LegalModal';
 import { Gift, SlidersHorizontal, Sparkles } from 'lucide-react';
 
 function MainApp() {
@@ -77,14 +76,6 @@ function MainApp() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
-  const [customizerBaseProduct, setCustomizerBaseProduct] = useState<Product | null>(null);
-
-  const handleOpenCustomizer = (product?: Product) => {
-    setCustomizerBaseProduct(product || selectedProduct || products[0] || null);
-    setIsCustomizerOpen(true);
-  };
-
   // Sync hash with admin view and support Ctrl+Shift+A secret hotkey
   useEffect(() => {
     const handleHashChange = () => {
@@ -266,9 +257,6 @@ function MainApp() {
         {adminTab === 'extras' && (
           <AdminExtras />
         )}
-        {adminTab === 'customizer' && (
-          <AdminCustomizerElements />
-        )}
         {adminTab === 'inventory' && (
           <AdminInventory
             products={products}
@@ -309,7 +297,6 @@ function MainApp() {
       {/* Ambient Mobile Balloons, Ballonsdei Watermarks & Bottom Action Bar */}
       <MobileBallonsdeiAtmosphere
         settings={settings}
-        onOpenCustomizer={() => handleOpenCustomizer()}
         onOpenSearch={() => setIsSearchOpen(true)}
         onNavigateToCatalog={() => handleNavigate('catalogo', 'all')}
       />
@@ -325,14 +312,12 @@ function MainApp() {
         onNavigate={handleNavigate}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenAdmin={handleOpenAdmin}
-        onOpenCustomizer={() => handleOpenCustomizer()}
       />
 
       {/* Hero Section with Parallax & 3D Interactive Card Tilt */}
       <Hero
         settings={settings}
         onExplore={(cat) => handleNavigate('catalogo', cat)}
-        onOpenCustomizer={() => handleOpenCustomizer()}
       />
 
       {/* Infinite Luxury Silk Marquee */}
@@ -496,33 +481,14 @@ function MainApp() {
         relatedProducts={products.filter((p) => p.id !== selectedProduct?.id)}
         onClose={() => setSelectedProduct(null)}
         onSelectProduct={(p) => setSelectedProduct(p)}
-        onOpenCustomizerStudio={(p) => {
-          setSelectedProduct(null);
-          handleOpenCustomizer(p);
-        }}
-      />
-
-      {/* Master Interactive Visual Arrangement Customizer */}
-      <ArrangementCustomizerModal
-        isOpen={isCustomizerOpen}
-        onClose={() => setIsCustomizerOpen(false)}
-        baseProduct={customizerBaseProduct}
-        allProducts={products}
-        onSelectBaseProduct={(p) => setCustomizerBaseProduct(p)}
       />
 
       <CartDrawer
         settings={settings}
         onProceedToCheckout={() => setIsCheckoutOpen(true)}
-        onCustomizeItem={(productId) => {
-          const prod = products.find((p) => p.id === productId);
-          if (prod) {
-            handleOpenCustomizer(prod);
-          } else {
-            handleOpenCustomizer();
-          }
-        }}
       />
+
+      <LegalModal settings={settings} />
 
       <CheckoutModal
         isOpen={isCheckoutOpen}

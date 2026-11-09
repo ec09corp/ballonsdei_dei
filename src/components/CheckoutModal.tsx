@@ -92,6 +92,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Payment methods: Yappy, Transferencia Bancaria, Tarjeta
   const [paymentMethod, setPaymentMethod] = useState<'Yappy' | 'Transferencia' | 'Tarjeta'>('Yappy');
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [receiptRef, setReceiptRef] = useState('');
   const [notes, setNotes] = useState('');
@@ -219,6 +220,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     // MANDATORY RECEIPT VALIDATION: Block if no screenshot uploaded for Yappy or Transferencia!
     if ((paymentMethod === 'Yappy' || paymentMethod === 'Transferencia') && !receiptImage) {
       setErrorMsg(`⚠️ Es obligatorio subir la captura de pantalla del comprobante de pago (${paymentMethod === 'Yappy' ? 'Yappy' : 'Transferencia Bancaria'}) para confirmar y procesar el pedido.`);
+      return;
+    }
+
+    if (!aceptaTerminos) {
+      setErrorMsg('Debes leer y aceptar los Términos y Condiciones y la Política de Privacidad para continuar.');
       return;
     }
 
@@ -1241,13 +1247,28 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
               )}
 
+              <label className="flex items-start gap-2.5 p-3 rounded-xl border border-[#E8D9E3] bg-white text-xs text-[#4A3C46] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={aceptaTerminos}
+                  onChange={(e) => setAceptaTerminos(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#763D8B]"
+                />
+                <span>
+                  He leído y acepto los{' '}
+                  <a href="#terminos" className="font-semibold text-[#763D8B] underline">Términos y Condiciones</a> y la{' '}
+                  <a href="#privacidad" className="font-semibold text-[#763D8B] underline">Política de Privacidad</a>.
+                  Entiendo que <strong>no se aceptan cambios ni devoluciones</strong>.
+                </span>
+              </label>
+
               <button
                 type="submit"
-                disabled={isSubmitting || ((paymentMethod === 'Yappy' || paymentMethod === 'Transferencia') && !receiptImage)}
+                disabled={isSubmitting || !aceptaTerminos || ((paymentMethod === 'Yappy' || paymentMethod === 'Transferencia') && !receiptImage)}
                 className="btn-cta-emil w-full py-4 bg-[#763D8B] hover:bg-[#602F72] disabled:bg-stone-300 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-semibold tracking-wider uppercase rounded-full shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-all"
               >
                 {isSubmitting ? (
-                  <span>Guardando Pedido en Supabase...</span>
+                  <span>Guardando pedido...</span>
                 ) : (
                   <>
                     <span>Confirmar Pedido</span>

@@ -27,6 +27,8 @@ import {
 } from '../types/database';
 import { useCart } from '../context/CartContext';
 import { InteractiveGiftCustomizer, CustomizerState } from './InteractiveGiftCustomizer';
+
+const PERSONALIZACION_ACTIVA = false;
 import { LiveGiftPreviewStage } from './LiveGiftPreviewStage';
 
 interface ProductDetailModalProps {
@@ -85,7 +87,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const isRental = product.available_for_rental;
 
   // Reservation items allow customization; Ready-Now items are strictly sold as pictured (tal cual en la foto)
-  const [isCustomizing, setIsCustomizing] = useState<boolean>(!isReady && isRes);
+  // Personalización de arreglos desactivada (pedido de la dueña): todo se vende tal cual la foto.
+  const [isCustomizing, setIsCustomizing] = useState<boolean>(PERSONALIZACION_ACTIVA && !isReady && isRes);
 
   const currentBasePrice = selectedOption
     ? Number(selectedOption.price)
@@ -186,7 +189,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         </div>
 
         {/* Mode Switcher: Diseño Original vs Modificar a mi Gusto */}
-        {!isRental && (
+        {PERSONALIZACION_ACTIVA && !isRental && (
           <div className="px-3 sm:px-8 pt-2.5 pb-2 bg-white border-b border-[#F0E8E2]">
             <div className="bg-[#FAF4F7] p-1 rounded-xl border border-[#E8DED7] flex items-center gap-1 max-w-md mx-auto shadow-2xs">
               <button
@@ -673,7 +676,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {!isRental && isRes && (
+                      {PERSONALIZACION_ACTIVA && !isRental && isRes && (
                         <button
                           type="button"
                           onClick={() => setIsCustomizing(true)}

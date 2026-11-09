@@ -230,6 +230,11 @@ export const Footer: React.FC<FooterProps> = ({
           >
             © {new Date().getFullYear()} {settings.store_name || 'Ballonsdei'}. Todos los derechos reservados.
           </p>
+          <p className="flex items-center gap-3">
+            <a href="#terminos" className="underline underline-offset-2 hover:text-white">Términos y Condiciones</a>
+            <span aria-hidden="true">·</span>
+            <a href="#privacidad" className="underline underline-offset-2 hover:text-white">Privacidad</a>
+          </p>
           <p className="flex items-center gap-1 select-none">
             <span>Hecho con elegancia y pasión para momentos inolvidables</span>
             <span
