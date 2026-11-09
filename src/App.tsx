@@ -362,28 +362,6 @@ function MainApp() {
             >
               🌸 Todos los Diseños
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveCategoryFilter('para-ya')}
-              className={`chip-spring px-4 py-2 rounded-full whitespace-nowrap font-medium cursor-pointer flex items-center gap-1.5 ${
-                activeCategoryFilter === 'para-ya'
-                  ? 'bg-amber-600 text-white shadow-sm border border-amber-600 font-semibold'
-                  : 'bg-white text-stone-700 hover:bg-amber-50 border border-amber-200'
-              }`}
-            >
-              <span>⚡ Para Ya (Inmediatos)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveCategoryFilter('por-reserva')}
-              className={`chip-spring px-4 py-2 rounded-full whitespace-nowrap font-medium cursor-pointer flex items-center gap-1.5 ${
-                activeCategoryFilter === 'por-reserva'
-                  ? 'bg-[#763D8B] text-white shadow-sm border border-[#763D8B] font-semibold'
-                  : 'bg-white text-stone-700 hover:bg-[#FAF4F7] border border-[#E4D7E0]'
-              }`}
-            >
-              <span>📅 Por Reserva (Personalizables)</span>
-            </button>
             {categories
               .filter((c) => c.active && c.slug !== 'regalos-fijos' && c.slug !== 'personalizables')
               .map((cat) => {

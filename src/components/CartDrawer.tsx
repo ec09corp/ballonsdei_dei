@@ -118,7 +118,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           </span>
                         ) : isProductReservation(item.product) ? (
                           <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[#763D8B] bg-purple-50 px-1.5 py-0.5 rounded-sm uppercase tracking-wider mt-0.5 border border-purple-200">
-                            📅 Por Reserva (Personalizable)
+                            📅 Por Reserva
                           </span>
                         ) : null}
 

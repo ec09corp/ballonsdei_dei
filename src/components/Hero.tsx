@@ -109,7 +109,7 @@ export const Hero: React.FC<HeroProps> = ({ settings, onExplore, onOpenCustomize
               ) : (
                 <button
                   type="button"
-                  onClick={() => onExplore('regalos-fijos')}
+                  onClick={() => onExplore('all')}
                   className="btn-tactile w-full sm:w-auto px-7 py-4 bg-white hover:bg-[#FAF4F7] text-[#241A23] border border-[#D9C8D4] text-xs sm:text-sm font-semibold tracking-[0.14em] uppercase rounded-full flex items-center justify-center gap-2 cursor-pointer active:scale-[0.97]"
                 >
                   <span>Descubrir Regalos</span>
@@ -129,10 +129,10 @@ export const Hero: React.FC<HeroProps> = ({ settings, onExplore, onOpenCustomize
               </div>
               <div className="border-x border-[#EAE3DC] px-4">
                 <span className="font-serif text-2xl sm:text-3xl text-[#763D8B] block font-light">
-                  Estudio 2D
+                  Por Reserva
                 </span>
                 <span className="text-[11px] text-[#8A7383] font-medium tracking-wider uppercase block mt-0.5">
-                  Visualización Real
+                  Hecho a tu Medida
                 </span>
               </div>
               <div>

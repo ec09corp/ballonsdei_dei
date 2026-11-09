@@ -42,7 +42,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     if (isOutOfStock) return { text: 'Pieza Agotada', style: 'bg-stone-900/85 text-stone-200' };
     if (isRental) return { text: 'Mobiliario para Eventos', style: 'bg-emerald-900/90 text-white' };
     if (isReady) return { text: '⚡ Para Ya · Tal cual en foto', style: 'bg-amber-500/95 text-white shadow-xs' };
-    if (isRes) return { text: '📅 Por Reserva · Personalizable', style: 'bg-[#763D8B]/95 text-white shadow-xs' };
+    if (isRes) return { text: '📅 Por Reserva', style: 'bg-[#763D8B]/95 text-white shadow-xs' };
     return { text: 'Diseño Original', style: 'bg-white/95 text-[#7D5B28] border border-[#C5A059]/40' };
   };
 
@@ -101,7 +101,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </span>
             <span className="text-[#7D5B28]" aria-hidden="true">·</span>
             <span>
-              {isReady ? 'Tal cual en foto' : 'Personalizable'}
+              {isReady ? 'Tal cual en foto' : 'Por Reserva'}
             </span>
             {hasMultipleOptions ? (
               <>

@@ -74,7 +74,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   const [previousPrice, setPreviousPrice] = useState<number | ''>('');
   const [sku, setSku] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [availabilityType, setAvailabilityType] = useState<AvailabilityType>('ready_now');
+  const [availabilityType, setAvailabilityType] = useState<AvailabilityType>('reservation');
   const [preparationDays, setPreparationDays] = useState<number>(3);
   const [giftType, setGiftType] = useState<GiftType>('none');
   const [stock, setStock] = useState<number>(10);
@@ -181,7 +181,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setSku(`BD-${Date.now().toString().slice(-4)}`);
     setCategoryId(categories[0]?.id || '');
     setNewCategoryNameInput('');
-    setAvailabilityType('ready_now');
+    setAvailabilityType('reservation');
     setPreparationDays(3);
     setGiftType('fixed');
     setStock(10);

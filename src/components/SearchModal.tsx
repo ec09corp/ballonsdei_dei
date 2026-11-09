@@ -114,7 +114,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                     <span>${(p.available_for_rental && p.rental_price ? p.rental_price : p.price).toFixed(2)}</span>
                     {p.available_for_rental && <span className="text-[#435C4E]">· Alquiler</span>}
                     {p.gift_type === 'fixed' && <span>· Regalo Fijo</span>}
-                    {p.gift_type === 'variable' && <span className="text-[#763D8B] font-medium">· Personalizable</span>}
+                    {p.gift_type === 'variable' && <span className="text-[#763D8B] font-medium">· Por Reserva</span>}
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-[#A89890] group-hover:text-[#763D8B] group-hover:translate-x-1 transition-[transform,color] duration-150" />

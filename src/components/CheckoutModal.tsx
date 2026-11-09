@@ -684,7 +684,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                               </span>
                             ) : (
                               <span className="text-[#763D8B] bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-semibold">
-                                📅 Por Reserva (Personalizable)
+                                📅 Por Reserva
                               </span>
                             )}
                           </span>
