@@ -125,6 +125,10 @@ export const Header: React.FC<HeaderProps> = ({
     { label: 'Contacto', id: 'contacto' },
   ];
 
+  // En computadora el menú de arriba no cabe con todas las categorías:
+  // ahí solo van Productos / Visítanos / Contacto (las categorías siguen en el catálogo y en el menú del celular).
+  const desktopNavItems = navItems.filter((item) => !item.category || item.category === 'all');
+
   const handleNavClick = (id: string, category?: string) => {
     onNavigate(id, category);
     setMobileMenuOpen(false);
@@ -227,7 +231,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Desktop Navigation Links */}
           <nav className="hidden lg:flex items-center gap-6">
-            {navItems.map((item) => {
+            {desktopNavItems.map((item) => {
               const isSelected = activeNav === (item.category || item.id);
               return (
                 <button
