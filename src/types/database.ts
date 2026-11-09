@@ -230,6 +230,7 @@ export interface Order {
   notes?: string | null;
   receipt_url?: string | null;
   receipt_ref?: string | null;
+  comprobante_archivo?: string | null;
   created_at: string;
   order_items?: OrderItem[];
 }

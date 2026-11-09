@@ -37,6 +37,7 @@ import {
 } from '../types/database';
 import { orderService } from '../services/orderService';
 import { COLON_DISTRICTS, OrderExtraItem } from '../data/colonDelivery';
+import { subirComprobante, pedirEnlaceComprobante } from '../lib/comprobantes';
 import { extrasService } from '../services/extrasService';
 
 interface CheckoutModalProps {
@@ -93,6 +94,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Payment methods: Yappy, Transferencia Bancaria, Tarjeta
   const [paymentMethod, setPaymentMethod] = useState<'Yappy' | 'Transferencia' | 'Tarjeta'>('Yappy');
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  const [enlaceComprobante, setEnlaceComprobante] = useState<string | null>(null);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [receiptRef, setReceiptRef] = useState('');
   const [notes, setNotes] = useState('');
@@ -258,6 +260,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
       const allItemsToSave = [...items, ...extraOrderItems];
 
+      // Sube la captura a la carpeta privada (para el enlace de WhatsApp y el panel)
+      const archivoComprobante = receiptImage ? await subirComprobante(receiptImage) : null;
+
       const { order, error } = await orderService.createOrder(
         {
           customer_name: fullName.trim(),
@@ -270,6 +275,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           notes: fullNotes,
           receipt_url: receiptImage,
           receipt_ref: receiptRef.trim() || null,
+          comprobante: archivoComprobante,
         },
         allItemsToSave,
         deliveryCost
@@ -279,6 +285,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         throw error || new Error('No se pudo procesar el pedido');
       }
 
+      setEnlaceComprobante(archivoComprobante ? await pedirEnlaceComprobante(archivoComprobante) : null);
       setCompletedOrder(order);
       setCompletedOrderExtras([...selectedExtras]);
       clearCart();
@@ -338,7 +345,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     const hasImage = hasReceiptImage || !!order.receipt_url;
 
     let receiptSummary = '';
-    if (order.payment_method.includes('Yappy')) {
+    if (enlaceComprobante) {
+      receiptSummary = `*Comprobante de pago${ref ? ` (Ref #${ref})` : ''}:*
+📸 FOTO DEL COMPROBANTE: ${enlaceComprobante}
+`;
+    } else if (order.payment_method.includes('Yappy')) {
       receiptSummary = `*Comprobante Yappy:* ${ref ? `Ref #${ref}` : ''} ${hasImage ? '(Captura de pantalla adjunta ✅)' : ''}\n`;
     } else if (order.payment_method.includes('Transferencia')) {
       receiptSummary = `*Comprobante Transferencia Bancaria:* ${ref ? `Ref #${ref}` : ''} ${hasImage ? '(Captura de comprobante adjunta ✅)' : ''}\n`;
@@ -363,7 +374,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       `*TOTAL FINAL:* $${order.total.toFixed(2)}\n` +
       `-------------------------------------------\n` +
       (order.notes ? `*Detalles & Dedicatoria:*\n${order.notes}\n\n` : '') +
-      (hasImage 
+      (enlaceComprobante
+        ? `Quedo atento a su confirmación. ¡Muchas gracias! ✨`
+        : hasImage
         ? `📸 *(Adjunto la captura del comprobante de pago)* 👇✨`
         : `Quedo atento a su confirmación y entrega. ¡Muchas gracias!`);
 

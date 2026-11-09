@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { firmarComprobantes } from '../lib/comprobantes';
 import { Order, OrderItem, OrderStatus, PaymentStatus } from '../types/database';
 
 const LOCAL_ORDERS_KEY = 'balloonsdei_orders_v4';
@@ -85,6 +86,7 @@ export const orderService = {
               total: Number(d.total) || 0,
               notes: d.notes || '',
               receipt_url: d.receipt_url || null,
+              comprobante_archivo: d.comprobante_url || null,
               receipt_ref: d.receipt_ref || null,
               created_at: d.created_at,
               order_items: Array.isArray(d.order_items)
@@ -105,7 +107,8 @@ export const orderService = {
           const missingLocals = localOrders.filter(
             (loc) => !mappedOrders.some((rem) => rem.id === loc.id || rem.order_number === loc.order_number)
           );
-          const finalOrders = [...mappedOrders, ...missingLocals];
+          const firmados = await firmarComprobantes(mappedOrders);
+          const finalOrders = [...firmados, ...missingLocals];
           saveLocalOrders(finalOrders);
           return finalOrders;
         }
@@ -144,6 +147,7 @@ export const orderService = {
       notes?: string;
       receipt_url?: string | null;
       receipt_ref?: string | null;
+      comprobante?: string | null;
     },
     items: OrderItem[],
     deliveryFee: number = 0
@@ -207,6 +211,7 @@ export const orderService = {
           delivery_fee: deliveryFee,
           total,
           notes: formattedNotes,
+          comprobante: orderData.comprobante || null,
         };
 
         // Se guarda con la función segura crear_pedido (el público ya no puede
