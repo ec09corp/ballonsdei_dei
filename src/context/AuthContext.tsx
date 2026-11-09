@@ -67,179 +67,92 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
+  // Seguridad: el panel SOLO se abre con una sesión real de Supabase y un perfil
+  // marcado como administrador (role = 'admin' y active = true). Ya no existen
+  // accesos locales, "acceso directo" ni cuentas creadas automáticamente.
   function checkLocalSession() {
     try {
-      const stored = localStorage.getItem(LOCAL_ADMIN_SESSION_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setUser({ email: parsed.email, id: parsed.id || 'admin-local' });
-        setProfile({
-          id: parsed.id || 'admin-local',
-          role: 'admin',
-          active: true,
-          full_name: parsed.full_name || 'Administradora BALLONSDEI',
-          email: parsed.email,
-        });
-        setIsAdmin(true);
-      } else {
-        setUser(null);
-        setProfile(null);
-        setIsAdmin(false);
-      }
-    } catch {
-      setUser(null);
-      setProfile(null);
-      setIsAdmin(false);
-    }
+      localStorage.removeItem(LOCAL_ADMIN_SESSION_KEY);
+    } catch {}
+    setUser(null);
+    setProfile(null);
+    setIsAdmin(false);
   }
 
   async function loadProfile(authUser: any) {
-    if (!supabase || !isSupabaseConfigured) return;
+    if (!supabase || !isSupabaseConfigured) {
+      setIsAdmin(false);
+      return false;
+    }
 
     try {
-      const { data, error: profileErr } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
         .maybeSingle();
 
-      if (data) {
-        setProfile(data);
-        // If active, give admin access
-        setIsAdmin(data.role === 'admin' || data.active);
-      } else {
-        // If profile doesn't exist yet in public.profiles, auto-upsert or grant admin session
-        const newProf: Profile = {
-          id: authUser.id,
-          role: 'admin',
-          active: true,
-          full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Administrador',
-          email: authUser.email,
-        };
-
-        try {
-          await supabase.from('profiles').upsert(newProf);
-        } catch (upErr) {
-          console.warn('Profile auto-upsert notice:', upErr);
-        }
-
-        setProfile(newProf);
-        setIsAdmin(true);
-      }
+      const esAdmin = !!data && data.role === 'admin' && data.active === true;
+      setProfile(data || null);
+      setIsAdmin(esAdmin);
+      return esAdmin;
     } catch (err: any) {
       console.error('Error fetching user profile:', err);
-      // Give access to the authenticated Supabase user
-      setIsAdmin(true);
+      setProfile(null);
+      setIsAdmin(false);
+      return false;
     }
   }
 
   const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setError(null);
 
-    // 1. If Supabase is connected, attempt Supabase Auth first
-    if (supabase && isSupabaseConfigured) {
-      try {
-        const { data, error: authError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (!authError && data?.user) {
-          setUser(data.user);
-          await loadProfile(data.user);
-          setIsAdmin(true);
-
-          localStorage.setItem(
-            LOCAL_ADMIN_SESSION_KEY,
-            JSON.stringify({
-              email: data.user.email,
-              id: data.user.id,
-              full_name: data.user.email?.split('@')[0] || 'Administrador',
-            })
-          );
-
-          return { success: true };
-        }
-
-        // If signIn failed because user doesn't exist yet, try to auto-signUp on Supabase!
-        if (authError && (authError.message.includes('Invalid login credentials') || authError.message.includes('User not found'))) {
-          try {
-            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-              email,
-              password,
-            });
-
-            if (!signUpError && signUpData?.user) {
-              setUser(signUpData.user);
-              await loadProfile(signUpData.user);
-              setIsAdmin(true);
-              localStorage.setItem(
-                LOCAL_ADMIN_SESSION_KEY,
-                JSON.stringify({
-                  email: signUpData.user.email,
-                  id: signUpData.user.id,
-                  full_name: signUpData.user.email?.split('@')[0] || 'Administrador',
-                })
-              );
-              return { success: true };
-            }
-          } catch (signUpErr) {
-            console.warn('Auto sign-up attempt error:', signUpErr);
-          }
-        }
-      } catch (err: any) {
-        console.warn('Error during Supabase login:', err);
-      }
+    if (!email || !password) {
+      const msg = 'Por favor ingresa un correo y contraseña válidos.';
+      setError(msg);
+      return { success: false, error: msg };
     }
 
-    // 2. Direct owner authorization:
-    // If credentials are provided, grant immediate administrative access so the owner is never locked out!
-    if (email && password) {
-      const adminData = {
-        email,
-        id: 'admin-local',
-        full_name: email.split('@')[0] || 'Administradora BALLONSDEI',
-      };
+    if (!supabase || !isSupabaseConfigured) {
+      const msg = 'No hay conexión con la base de datos. Intenta más tarde.';
+      setError(msg);
+      return { success: false, error: msg };
+    }
 
-      setUser({ email, id: 'admin-local' });
-      setProfile({
-        id: 'admin-local',
-        role: 'admin',
-        active: true,
-        full_name: adminData.full_name,
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
+        password,
       });
-      setIsAdmin(true);
 
-      localStorage.setItem(LOCAL_ADMIN_SESSION_KEY, JSON.stringify(adminData));
+      if (authError || !data?.user) {
+        const msg = 'Correo o contraseña incorrectos.';
+        setError(msg);
+        return { success: false, error: msg };
+      }
+
+      setUser(data.user);
+      const esAdmin = await loadProfile(data.user);
+      if (!esAdmin) {
+        await supabase.auth.signOut();
+        setUser(null);
+        const msg = 'Esta cuenta no tiene permiso para entrar al panel.';
+        setError(msg);
+        return { success: false, error: msg };
+      }
+
       return { success: true };
+    } catch (err: any) {
+      console.warn('Error during Supabase login:', err);
+      const msg = 'No se pudo iniciar sesión. Intenta nuevamente.';
+      setError(msg);
+      return { success: false, error: msg };
     }
-
-    const msg = 'Por favor ingresa un correo y contraseña válidos.';
-    setError(msg);
-    return { success: false, error: msg };
   };
 
-  const signInAsOwner = async (customEmail?: string, customName?: string): Promise<{ success: boolean }> => {
-    const chosenEmail = customEmail || 'propietaria@ballonsdei.com';
-    const adminData = {
-      email: chosenEmail,
-      id: 'admin-owner',
-      full_name: customName || 'Administradora BALLONSDEI',
-    };
-
-    setUser({ email: chosenEmail, id: 'admin-owner' });
-    setProfile({
-      id: 'admin-owner',
-      role: 'admin',
-      active: true,
-      full_name: adminData.full_name,
-      email: chosenEmail,
-    });
-    setIsAdmin(true);
-
-    localStorage.setItem(LOCAL_ADMIN_SESSION_KEY, JSON.stringify(adminData));
-    return { success: true };
+  // Eliminado por seguridad: daba acceso al panel sin contraseña.
+  const signInAsOwner = async (): Promise<{ success: boolean }> => {
+    return { success: false };
   };
 
   const signOut = async () => {

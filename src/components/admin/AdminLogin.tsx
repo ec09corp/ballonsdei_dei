@@ -12,7 +12,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   onBackToStore,
   onLoginSuccess,
 }) => {
-  const { signIn, signInAsOwner, error: authError } = useAuth();
+  const { signIn, error: authError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,22 +28,12 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       if (res.success) {
         onLoginSuccess();
       } else {
-        setLocalError(res.error || 'No se pudo iniciar sesión. Puedes usar el botón de Acceso Directo Propietario abajo.');
+        setLocalError(res.error || 'No se pudo iniciar sesión.');
       }
     } catch (err: any) {
       setLocalError(err.message || 'Error en autenticación');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleOwnerAccess = async () => {
-    setLoading(true);
-    const chosenEmail = email.trim() || 'propietaria@ballonsdei.com';
-    const res = await signInAsOwner(chosenEmail, 'Propietaria BALLONSDEI');
-    setLoading(false);
-    if (res.success) {
-      onLoginSuccess();
     }
   };
 
@@ -120,21 +110,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             </button>
           </form>
 
-          {/* Direct Owner Access Button */}
-          <div className="pt-4 border-t border-[#EBE2DB] space-y-2">
-            <span className="text-[11px] text-[#7A6B63] block text-center font-light">
-              ¿Quieres acceder de inmediato como dueña de la tienda?
-            </span>
-            <button
-              type="button"
-              onClick={handleOwnerAccess}
-              disabled={loading}
-              className="w-full py-3 px-3 bg-[#382B26] hover:bg-[#251D1A] text-white rounded-lg text-xs font-medium uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md"
-            >
-              <Sparkles className="w-4 h-4 text-[#E6C6B0]" />
-              <span>Acceso Directo Propietaria BALLONSDEI</span>
-            </button>
-          </div>
         </div>
       </div>
     </div>

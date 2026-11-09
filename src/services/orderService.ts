@@ -209,28 +209,24 @@ export const orderService = {
           notes: formattedNotes,
         };
 
-        const { data: insertedOrder, error: orderErr } = await supabase
-          .from('orders')
-          .insert(orderInsertPayload)
-          .select()
-          .single();
+        // Se guarda con la función segura crear_pedido (el público ya no puede
+        // leer ni modificar la tabla orders directamente).
+        const itemsPayload = items.map((it) => ({
+          product_id: it.product_id?.length === 36 ? it.product_id : null,
+          product_name: it.product_name || 'Arreglo Floral',
+          quantity: it.quantity || 1,
+          unit_price: it.unit_price || 0,
+        }));
+
+        const { data: insertedOrder, error: orderErr } = await supabase.rpc('crear_pedido', {
+          p_pedido: orderInsertPayload,
+          p_items: itemsPayload,
+        });
 
         if (!orderErr && insertedOrder) {
           const actualOrderNumber = insertedOrder.order_number
             ? `BD-${String(insertedOrder.order_number).padStart(5, '0')}`
             : tempOrderNumber;
-
-          // Insert order items into order_items table
-          const itemsPayload = items.map((it) => ({
-            id: safeUuid(),
-            order_id: insertedOrder.id,
-            product_id: it.product_id?.length === 36 ? it.product_id : null,
-            product_name: it.product_name || 'Arreglo Floral',
-            quantity: it.quantity || 1,
-            unit_price: it.unit_price || 0,
-          }));
-
-          await supabase.from('order_items').insert(itemsPayload);
 
           const completedOrder: Order = {
             ...localNewOrder,
@@ -319,27 +315,9 @@ export const orderService = {
   },
 
   async syncToMetadata() {
-    if (!supabase || !isSupabaseConfigured) return;
-    try {
-      const { data: setRow } = await supabase
-        .from('settings')
-        .select('metadata')
-        .eq('id', SETTINGS_ROW_ID)
-        .maybeSingle();
-
-      const existingMeta = setRow?.metadata || {};
-      const updatedMeta = {
-        ...existingMeta,
-        orders: getLocalOrders(),
-      };
-
-      await supabase
-        .from('settings')
-        .update({ metadata: updatedMeta })
-        .eq('id', SETTINGS_ROW_ID);
-    } catch (e) {
-      console.warn('Error syncing orders to metadata:', e);
-    }
+    // Desactivado por seguridad: antes copiaba TODOS los pedidos (nombre, teléfono,
+    // dirección) dentro de settings.metadata, que cualquiera puede leer.
+    return;
   },
 };
 
