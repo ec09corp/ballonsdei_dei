@@ -309,7 +309,6 @@ export const productionService = {
 
     // Local movement update
     await this.updateItem(itemId, { current_quantity: newQuantity, status });
-    const currentMovs = getLocalMovements();
     const newMovement: ProductionMovement = {
       id: `mov-${Date.now()}`,
       item_id: itemId,
@@ -319,15 +318,76 @@ export const productionService = {
       reason,
       created_at: new Date().toISOString(),
     };
+
+    // Historial en Supabase (antes solo quedaba en este navegador)
+    if (supabase && isSupabaseConfigured) {
+      const { data, error } = await supabase
+        .from('production_movements')
+        .insert({
+          production_item_id: itemId,
+          movement_type: type,
+          quantity,
+          reason: reason || null,
+        })
+        .select('id, created_at')
+        .maybeSingle();
+      if (error) {
+        console.error('Error guardando el movimiento en Supabase:', error.message);
+        throw new Error('La cantidad se actualizó, pero el historial no se pudo guardar: ' + error.message);
+      }
+      if (data) {
+        newMovement.id = data.id;
+        newMovement.created_at = data.created_at;
+      }
+    }
+
+    const currentMovs = getLocalMovements();
     saveLocalMovements([newMovement, ...currentMovs]);
     return true;
   },
 
   async getMovements(): Promise<ProductionMovement[]> {
+    if (supabase && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('production_movements')
+          .select('id, production_item_id, movement_type, quantity, reason, created_at, item:production_items(name)')
+          .order('created_at', { ascending: false })
+          .limit(200);
+        if (!error && data) {
+          const movs: ProductionMovement[] = data.map((m: any) => ({
+            id: m.id,
+            item_id: m.production_item_id,
+            item_name: m.item?.name || '',
+            movement_type: m.movement_type,
+            quantity: Number(m.quantity) || 0,
+            reason: m.reason || '',
+            created_at: m.created_at,
+          }));
+          saveLocalMovements(movs);
+          return movs;
+        }
+      } catch (err) {
+        console.warn('Error leyendo movimientos de Supabase, usando copia local:', err);
+      }
+    }
     return getLocalMovements();
   },
 
   async getProductMaterials(productId: string): Promise<ProductProductionItem[]> {
+    if (supabase && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('product_production_items')
+          .select('id, product_id, production_item_id, quantity_required')
+          .eq('product_id', productId);
+        if (!error && data) {
+          return data.map((r: any) => ({ ...r, quantity_required: Number(r.quantity_required) || 0 }));
+        }
+      } catch (err) {
+        console.warn('Error leyendo receta de Supabase, usando copia local:', err);
+      }
+    }
     try {
       const raw = localStorage.getItem(LOCAL_PROD_RELATIONS_KEY);
       if (raw) {
@@ -342,6 +402,31 @@ export const productionService = {
     productId: string,
     materials: { production_item_id: string; quantity_required: number }[]
   ): Promise<boolean> {
+    // Receta en Supabase (antes solo quedaba en este navegador)
+    if (supabase && isSupabaseConfigured) {
+      const { error: delErr } = await supabase
+        .from('product_production_items')
+        .delete()
+        .eq('product_id', productId);
+      if (delErr) {
+        console.error('Error borrando receta anterior:', delErr.message);
+        return false;
+      }
+      const rows = materials
+        .filter((m) => m.production_item_id && Number(m.quantity_required) > 0)
+        .map((m) => ({
+          product_id: productId,
+          production_item_id: m.production_item_id,
+          quantity_required: Number(m.quantity_required),
+        }));
+      if (rows.length > 0) {
+        const { error } = await supabase.from('product_production_items').insert(rows);
+        if (error) {
+          console.error('Error guardando receta:', error.message);
+          return false;
+        }
+      }
+    }
     try {
       const raw = localStorage.getItem(LOCAL_PROD_RELATIONS_KEY);
       let all: ProductProductionItem[] = raw ? JSON.parse(raw) : [];
@@ -353,10 +438,8 @@ export const productionService = {
         quantity_required: m.quantity_required,
       }));
       localStorage.setItem(LOCAL_PROD_RELATIONS_KEY, JSON.stringify([...all, ...newItems]));
-      return true;
-    } catch (e) {
-      return false;
-    }
+    } catch (e) {}
+    return true;
   },
 
   async deleteAllItems(): Promise<boolean> {
@@ -374,26 +457,8 @@ export const productionService = {
   },
 
   async syncToMetadata() {
-    if (!supabase || !isSupabaseConfigured) return;
-    try {
-      const { data: setRow } = await supabase
-        .from('settings')
-        .select('metadata')
-        .eq('id', SETTINGS_ROW_ID)
-        .maybeSingle();
-
-      const existingMeta = setRow?.metadata || {};
-      const updatedMeta = {
-        ...existingMeta,
-        production_items: getLocalProductionItems(),
-      };
-
-      await supabase
-        .from('settings')
-        .update({ metadata: updatedMeta })
-        .eq('id', SETTINGS_ROW_ID);
-    } catch (e) {
-      console.warn('Error syncing production items to settings metadata:', e);
-    }
+    // Desactivado por seguridad: copiaba las insumos (costos y proveedores) a settings.metadata,
+    // que cualquiera puede leer.
+    return;
   },
 };

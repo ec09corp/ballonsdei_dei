@@ -152,7 +152,7 @@ export const categoryService = {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-    const newId = `cat-${Date.now()}`;
+    const newId = crypto.randomUUID ? crypto.randomUUID() : `cat-${Date.now()}`;
     let createdInDb: Category | null = null;
 
     if (supabase && isSupabaseConfigured) {

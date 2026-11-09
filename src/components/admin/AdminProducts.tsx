@@ -449,37 +449,6 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
           </div>
 
           <button
-            type="button"
-            onClick={() => setShowSqlModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#FAF4F7] hover:bg-[#F2E5EF] border border-[#763D8B]/30 text-[#763D8B] rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
-            title="Ver y copiar el script SQL de opciones y variantes para Supabase"
-          >
-            <Database className="w-3.5 h-3.5 text-[#763D8B]" />
-            <span>Script SQL Variantes</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSyncWithSupabase}
-            disabled={isSyncingSupabase}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-stone-50 border border-[#D5C2B8] text-[#423530] rounded-lg text-xs font-medium shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-            title="Sincronizar todos los productos con tu base de datos Supabase"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#763D8B] ${isSyncingSupabase ? 'animate-spin' : ''}`} />
-            <span>{isSyncingSupabase ? 'Sincronizando...' : 'Sincronizar Supabase'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowClearConfirmModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
-            title="Vaciar todos los productos y categorías para empezar tu catálogo limpio desde cero"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-            <span>Vaciar Catálogo (Desde Cero)</span>
-          </button>
-
-          <button
             onClick={openCreateModal}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#763D8B] hover:bg-[#602F72] text-white rounded-lg text-xs font-semibold uppercase tracking-wider shadow-sm transition-colors cursor-pointer self-start sm:self-auto"
           >

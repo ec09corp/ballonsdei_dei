@@ -161,12 +161,20 @@ export const AdminProduction: React.FC<AdminProductionProps> = ({ products }) =>
     e.preventDefault();
     if (!movementItemId || movementQty <= 0) return;
 
-    const ok = await productionService.recordMovement(
-      movementItemId,
-      movementType,
-      movementQty,
-      movementReason || (movementType === 'entry' ? 'Entrada manual' : 'Salida manual')
-    );
+    let ok = false;
+    try {
+      ok = await productionService.recordMovement(
+        movementItemId,
+        movementType,
+        movementQty,
+        movementReason || (movementType === 'entry' ? 'Entrada manual' : 'Salida manual')
+      );
+    } catch (err: any) {
+      setFeedbackMsg({ type: 'error', text: err?.message || 'No se pudo registrar el movimiento.' });
+      setIsMovementModalOpen(false);
+      loadData();
+      return;
+    }
 
     if (ok) {
       setFeedbackMsg({ type: 'success', text: 'Movimiento de inventario registrado correctamente.' });
@@ -191,8 +199,12 @@ export const AdminProduction: React.FC<AdminProductionProps> = ({ products }) =>
   };
 
   const handleSaveRelations = async () => {
-    await productionService.setProductMaterials(selectedProductId, productMaterials);
-    setFeedbackMsg({ type: 'success', text: 'Relación de insumos del producto guardada.' });
+    const ok = await productionService.setProductMaterials(selectedProductId, productMaterials);
+    setFeedbackMsg(
+      ok
+        ? { type: 'success', text: 'Relación de insumos del producto guardada.' }
+        : { type: 'error', text: 'No se pudo guardar la relación de insumos. Intenta de nuevo.' }
+    );
     setIsRelationModalOpen(false);
   };
 

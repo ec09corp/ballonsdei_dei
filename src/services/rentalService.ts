@@ -211,6 +211,7 @@ export const rentalService = {
             start_date: rentalData.start_date,
             end_date: rentalData.end_date,
             quantity: rentalData.quantity || 1,
+            rental_price: rentalData.total_price || 0,
             deposit: rentalData.deposit_amount || 0,
             status: 'reserved',
             notes: formattedNotes,
@@ -295,27 +296,9 @@ export const rentalService = {
   },
 
   async syncToMetadata() {
-    if (!supabase || !isSupabaseConfigured) return;
-    try {
-      const { data: setRow } = await supabase
-        .from('settings')
-        .select('metadata')
-        .eq('id', SETTINGS_ROW_ID)
-        .maybeSingle();
-
-      const existingMeta = setRow?.metadata || {};
-      const updatedMeta = {
-        ...existingMeta,
-        rentals: getLocalRentals(),
-      };
-
-      await supabase
-        .from('settings')
-        .update({ metadata: updatedMeta })
-        .eq('id', SETTINGS_ROW_ID);
-    } catch (e) {
-      console.warn('Error syncing rentals to metadata:', e);
-    }
+    // Desactivado por seguridad: copiaba las reservas (nombre y teléfono de clientes) a settings.metadata,
+    // que cualquiera puede leer.
+    return;
   },
 };
 

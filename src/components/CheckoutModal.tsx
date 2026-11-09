@@ -361,7 +361,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         ? `📸 *(Adjunto la captura del comprobante de pago)* 👇✨`
         : `Quedo atento a su confirmación y entrega. ¡Muchas gracias!`);
 
-    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+    return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`;
   };
 
   const handlePrintReceipt = () => {

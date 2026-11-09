@@ -46,21 +46,23 @@ function saveLocalSettings(settings: StoreSettings) {
   } catch (e) {}
 }
 
+const SETTINGS_ROW_ID = '75b13ef3-b885-462e-a110-f2fccbc47530';
+
 export const settingsService = {
   async getSettings(): Promise<StoreSettings> {
     if (supabase && isSupabaseConfigured) {
       try {
         const { data, error } = await supabase
           .from('settings')
-          .select('*')
-          .limit(1)
-          .single();
+          .select('metadata')
+          .eq('id', SETTINGS_ROW_ID)
+          .maybeSingle();
 
-        if (!error && data) {
-          return {
-            ...INITIAL_SETTINGS,
-            ...data,
-          };
+        const guardada = data?.metadata?.store_settings;
+        if (!error && guardada && typeof guardada === 'object') {
+          const merged = { ...INITIAL_SETTINGS, ...guardada } as StoreSettings;
+          saveLocalSettings(merged);
+          return merged;
         }
       } catch (err) {
         console.warn('Error fetching settings from Supabase, using local:', err);
@@ -70,36 +72,50 @@ export const settingsService = {
     return getLocalSettings();
   },
 
+  // Guarda la configuración en settings.metadata.store_settings (la tabla no tiene
+  // columnas para todos los campos del panel). Si Supabase falla, lanza el error
+  // para que el panel lo muestre en vez de decir "guardado".
   async updateSettings(settings: Partial<StoreSettings>): Promise<StoreSettings> {
-    const current = getLocalSettings();
-    const updated = { ...current, ...settings };
-    saveLocalSettings(updated);
+    const current = await this.getSettings();
+    const updated = { ...current, ...settings } as StoreSettings;
 
-    if (supabase && isSupabaseConfigured) {
-      try {
-        const payload = {
-          id: 'current_settings',
-          ...INITIAL_SETTINGS,
-          ...current,
-          ...settings,
-        };
-
-        const { data, error } = await supabase
-          .from('settings')
-          .upsert(payload)
-          .select()
-          .maybeSingle();
-
-        if (error) {
-          console.warn('Notice updating settings in Supabase:', error.message);
-        } else if (data) {
-          return { ...updated, ...data };
-        }
-      } catch (err: any) {
-        console.error('Error updating settings in Supabase:', err.message || err);
-      }
+    if (!supabase || !isSupabaseConfigured) {
+      throw new Error('No hay conexión con la base de datos. No se guardó.');
     }
 
+    const { data: row, error: readErr } = await supabase
+      .from('settings')
+      .select('metadata')
+      .eq('id', SETTINGS_ROW_ID)
+      .maybeSingle();
+    if (readErr || !row) {
+      throw new Error('No se pudo leer la configuración: ' + (readErr?.message || 'fila no encontrada'));
+    }
+
+    const metadata = { ...(row.metadata || {}), store_settings: updated };
+    const { data: saved, error } = await supabase
+      .from('settings')
+      .update({
+        metadata,
+        business_name: updated.store_name || 'BALLOONSDEI',
+        logo_url: updated.logo_url || null,
+        instagram_url: updated.instagram_url || null,
+        whatsapp_number: updated.whatsapp_number || null,
+        phone_number: updated.phone || null,
+        email: updated.email || null,
+        address: updated.address || null,
+        google_maps_url: updated.google_maps_url || null,
+        opening_hours: (updated as any).schedule_hours || null,
+        delivery_fee: Number(updated.delivery_fee) || 0,
+      })
+      .eq('id', SETTINGS_ROW_ID)
+      .select('id');
+
+    if (error || !saved || saved.length === 0) {
+      throw new Error('No se pudo guardar en la base de datos: ' + (error?.message || 'sin permiso'));
+    }
+
+    saveLocalSettings(updated);
     return updated;
   },
 };

@@ -171,20 +171,6 @@ export const AdminCategories: React.FC<AdminCategoriesProps> = ({
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          {categories.length > 0 && (
-            <button
-              type="button"
-              onClick={async () => {
-                if (window.confirm('¿Deseas vaciar todas las categorías para empezar desde cero?')) {
-                  await categoryService.deleteAllCategories();
-                  onRefresh();
-                }
-              }}
-              className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
-            >
-              Vaciar Categorías
-            </button>
-          )}
 
           <button
             onClick={openCreateModal}
