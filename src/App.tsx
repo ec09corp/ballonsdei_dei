@@ -76,24 +76,16 @@ function MainApp() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  // Sync hash with admin view and support Ctrl+Shift+A secret hotkey
+  // Sync hash with admin view
   useEffect(() => {
     const handleHashChange = () => {
       setIsAdminView(checkIsAdmin());
     };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
-        e.preventDefault();
-        window.location.hash = window.location.hash.startsWith('#admin') ? '' : '#admin';
-      }
-    };
     window.addEventListener('hashchange', handleHashChange);
     window.addEventListener('popstate', handleHashChange);
-    window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
       window.removeEventListener('popstate', handleHashChange);
-      window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 

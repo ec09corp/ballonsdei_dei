@@ -7,8 +7,7 @@ import {
   Phone, 
   MapPin, 
   ChevronRight,
-  MessageCircle,
-  ShieldCheck
+  MessageCircle
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { Category, StoreSettings } from '../types/database';
@@ -72,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
     // Haptic feedback on tap
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try {
-        if (currentTaps >= 5) {
+        if (currentTaps >= 8) {
           navigator.vibrate([80, 50, 100]);
         } else if (currentTaps >= 2) {
           navigator.vibrate([35]);
@@ -80,8 +79,8 @@ export const Header: React.FC<HeaderProps> = ({
       } catch {}
     }
 
-    // Trigger Admin Mode on 5 consecutive taps
-    if (currentTaps >= 5) {
+    // Abrir el panel con 8 toques seguidos al logo
+    if (currentTaps >= 8) {
       e.preventDefault();
       e.stopPropagation();
       if (logoNavTimerRef.current) {
@@ -102,7 +101,7 @@ export const Header: React.FC<HeaderProps> = ({
       clearTimeout(logoNavTimerRef.current);
     }
     logoNavTimerRef.current = setTimeout(() => {
-      if (logoTapTrackerRef.current.count > 0 && logoTapTrackerRef.current.count < 5) {
+      if (logoTapTrackerRef.current.count > 0 && logoTapTrackerRef.current.count < 8) {
         handleNavClick('catalogo', 'all');
       }
       logoTapTrackerRef.current.count = 0;
@@ -372,25 +371,6 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
                 <ChevronRight className="w-4 h-4 text-emerald-500" />
               </a>
-
-              {/* Mobile Direct Access to Admin Panel */}
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  window.location.hash = '#admin';
-                  onOpenAdmin();
-                }}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-left text-xs font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors mt-3 cursor-pointer border border-stone-200"
-              >
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#8D5844]" />
-                  <span>Panel Administrador (Admin)</span>
-                </div>
-                <span className="text-[10px] bg-[#8D5844] text-white px-2 py-0.5 rounded-full font-semibold">
-                  Acceder
-                </span>
-              </button>
             </div>
 
             <div className="mt-auto pt-6 border-t border-stone-200 space-y-3 text-xs text-stone-500">

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Instagram, MessageCircle, Phone, MapPin, Clock, Lock, Sparkles, Heart } from 'lucide-react';
+import { Instagram, MessageCircle, Phone, MapPin, Clock, Sparkles, Heart } from 'lucide-react';
 import { StoreSettings } from '../types/database';
 
 interface FooterProps {
@@ -14,19 +14,18 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenAdmin,
 }) => {
   const tapTrackerRef = useRef<{ count: number; lastTime: number }>({ count: 0, lastTime: 0 });
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleTap = (e?: React.SyntheticEvent) => {
     if (e) e.stopPropagation();
     const now = Date.now();
-    if (now - tapTrackerRef.current.lastTime < 750) {
+    if (now - tapTrackerRef.current.lastTime < 1100) {
       tapTrackerRef.current.count += 1;
     } else {
       tapTrackerRef.current.count = 1;
     }
     tapTrackerRef.current.lastTime = now;
 
-    if (tapTrackerRef.current.count >= 5) {
+    if (tapTrackerRef.current.count >= 8) {
       tapTrackerRef.current.count = 0;
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         try { navigator.vibrate([60, 50, 60]); } catch {}
@@ -35,17 +34,6 @@ export const Footer: React.FC<FooterProps> = ({
     }
   };
 
-  const handleTouchStart = () => {
-    longPressTimerRef.current = setTimeout(() => {
-      onOpenAdmin();
-    }, 2000);
-  };
-
-  const handleTouchEnd = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-    }
-  };
   const cleanPhone = (settings.whatsapp_number || '+50764324750').replace(/[^0-9]/g, '');
 
   return (
@@ -56,9 +44,6 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="lg:col-span-4 space-y-4">
             <div 
               onClick={handleTap}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-              onTouchCancel={handleTouchEnd}
               className="flex items-center gap-3 cursor-pointer select-none"
               title="Ballonsdei"
             >
@@ -216,15 +201,6 @@ export const Footer: React.FC<FooterProps> = ({
                   Atención por WhatsApp
                 </button>
               </li>
-              <li>
-                <button
-                  onClick={onOpenAdmin}
-                  className="hover:text-[#F5EEF3] transition-colors flex items-center gap-1.5 text-[#C19B65] font-medium cursor-pointer"
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Panel Administrador</span>
-                </button>
-              </li>
             </ul>
           </div>
         </div>
@@ -232,10 +208,6 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Bottom copyright */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#836D7D] font-light">
           <p
-            onClick={handleTap}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchEnd}
             className="cursor-default select-none transition-opacity active:opacity-75"
             title="Ballonsdei"
           >
@@ -249,10 +221,6 @@ export const Footer: React.FC<FooterProps> = ({
           <p className="flex items-center gap-1 select-none">
             <span>Hecho con elegancia y pasión para momentos inolvidables</span>
             <span
-              onClick={handleTap}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-              onTouchCancel={handleTouchEnd}
               className="cursor-default transition-transform active:scale-125 inline-block p-1"
               title="Ballonsdei"
             >
