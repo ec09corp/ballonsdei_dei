@@ -26,7 +26,7 @@ export const MobileBallonsdeiAtmosphere: React.FC<MobileBallonsdeiAtmosphereProp
         aria-hidden="true" 
         className="pointer-events-none fixed inset-0 z-0 overflow-hidden sm:hidden select-none"
       >
-        {/* Floating Balloon 1: Soft Lavender Pastel with Ballonsdei Ribbon (Top Right) */}
+        {/* Floating Balloon 1: Soft Lavender Pastel with Balloonsdei Ribbon (Top Right) */}
         <div 
           className="absolute -top-6 -right-6 w-32 h-40 opacity-30 animate-pulse"
           style={{ animationDuration: '6s' }}
@@ -37,7 +37,7 @@ export const MobileBallonsdeiAtmosphere: React.FC<MobileBallonsdeiAtmosphereProp
             {/* Balloon Tie & Ribbon */}
             <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-2 bg-[#763D8B] rounded-sm" />
             <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 text-[8px] font-bold tracking-widest text-[#763D8B] uppercase whitespace-nowrap rotate-90 opacity-60">
-              BALLONSDEI
+              BALLOONSDEI
             </div>
           </div>
         </div>
@@ -67,7 +67,7 @@ export const MobileBallonsdeiAtmosphere: React.FC<MobileBallonsdeiAtmosphereProp
           </div>
         </div>
 
-        {/* Subtle repeating luxury background pattern with Ballonsdei seals */}
+        {/* Subtle repeating luxury background pattern with Balloonsdei seals */}
         <div className="absolute inset-0 opacity-[0.025] bg-[radial-gradient(#763D8B_1.5px,transparent_1.5px)] [background-size:24px_24px]" />
       </div>
 
@@ -146,7 +146,7 @@ export const MobileBallonsdeiAtmosphere: React.FC<MobileBallonsdeiAtmosphereProp
 
           {/* 5. WhatsApp Directo */}
           <a
-            href={`https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(settings.store_name || 'Ballonsdei')},%20deseo%20hacer%20un%20pedido.`}
+            href={`https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(settings.store_name || 'Balloonsdei')},%20deseo%20hacer%20un%20pedido.`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex flex-col items-center justify-center py-1 px-1 rounded-xl text-emerald-700 active:scale-95 transition-all cursor-pointer"

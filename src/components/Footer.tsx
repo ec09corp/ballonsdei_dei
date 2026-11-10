@@ -45,18 +45,18 @@ export const Footer: React.FC<FooterProps> = ({
             <div 
               onClick={handleTap}
               className="flex items-center gap-3 cursor-pointer select-none"
-              title="Ballonsdei"
+              title="Balloonsdei"
             >
               {settings.logo_url && (
                 <img
                   src={settings.logo_url}
-                  alt={settings.store_name || 'Ballonsdei'}
+                  alt={settings.store_name || 'Balloonsdei'}
                   className="h-10 sm:h-12 w-auto max-w-[140px] object-contain rounded-md pointer-events-none"
                 />
               )}
               <div>
                 <span className="font-serif text-2xl tracking-[0.2em] text-[#F5EEF3] font-medium block uppercase">
-                  {settings.store_name || 'Ballonsdei'}
+                  {settings.store_name || 'Balloonsdei'}
                 </span>
                 <span className="text-[10px] tracking-[0.35em] text-[#B89DB1] uppercase block mt-0.5">
                   Arreglos Florales & Eventos
@@ -209,9 +209,9 @@ export const Footer: React.FC<FooterProps> = ({
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#836D7D] font-light">
           <p
             className="cursor-default select-none transition-opacity active:opacity-75"
-            title="Ballonsdei"
+            title="Balloonsdei"
           >
-            © {new Date().getFullYear()} {settings.store_name || 'Ballonsdei'}. Todos los derechos reservados.
+            © {new Date().getFullYear()} {settings.store_name || 'Balloonsdei'}. Todos los derechos reservados.
           </p>
           <p className="flex items-center gap-3">
             <a href="#terminos" className="underline underline-offset-2 hover:text-white">Términos y Condiciones</a>
@@ -222,7 +222,7 @@ export const Footer: React.FC<FooterProps> = ({
             <span>Hecho con elegancia y pasión para momentos inolvidables</span>
             <span
               className="cursor-default transition-transform active:scale-125 inline-block p-1"
-              title="Ballonsdei"
+              title="Balloonsdei"
             >
               <Heart className="w-3 h-3 text-[#C19B65]" />
             </span>

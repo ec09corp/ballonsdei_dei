@@ -247,7 +247,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     try {
       const finalAddress = deliveryType === 'delivery'
         ? `Provincia de Colón, ${currentDistrict.name}, Corregimiento ${corregimientoName}. Dirección: ${addressDetails.trim()}`
-        : `Retiro en tienda Ballonsdei (Colón, entre calle 12 y 13, Avenida Amador Guerrero)`;
+        : `Retiro en tienda Balloonsdei (Colón, entre calle 12 y 13, Avenida Amador Guerrero)`;
 
       let fullNotes = notes.trim();
       if (arrangementChanges.trim()) {
@@ -278,7 +278,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       const { order, error } = await orderService.createOrder(
         {
           customer_name: fullName.trim(),
-          customer_email: email.trim() || 'cliente@ballonsdei.com',
+          customer_email: email.trim() || 'cliente@balloonsdei.com',
           customer_phone: phone.trim(),
           delivery_address: finalAddress,
           delivery_date: deliveryDate,
@@ -368,12 +368,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
 
     const msg = `🧾 *RECIBO OFICIAL DE PEDIDO #${order.order_number}*\n` +
-      `*BALLONSDEI — BOUTIQUE FLORAL (COLÓN)*\n` +
+      `*BALLOONSDEI — BOUTIQUE FLORAL (COLÓN)*\n` +
       `-------------------------------------------\n` +
       `*Cliente:* ${order.customer_name}\n` +
       `*Teléfono:* ${order.customer_phone}\n` +
       `*Fecha de Entrega/Retiro:* ${order.delivery_date}\n` +
-      `*Modalidad:* ${order.delivery_type === 'delivery' ? 'Envío a domicilio en Provincia de Colón' : 'Retiro en tienda Ballonsdei (Colón)'}\n` +
+      `*Modalidad:* ${order.delivery_type === 'delivery' ? 'Envío a domicilio en Provincia de Colón' : 'Retiro en tienda Balloonsdei (Colón)'}\n` +
       `*Destino:* ${order.delivery_address}\n` +
       `*Método de Pago:* ${order.payment_method}\n` +
       receiptSummary +
@@ -402,7 +402,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const handleCopyReceiptText = () => {
     if (!completedOrder) return;
     const cleanPhone = (settings.whatsapp_number || '+50764324750').replace(/[^0-9]/g, '');
-    const textToCopy = `RECIBO OFICIAL DE PEDIDO #${completedOrder.order_number}\nBALLONSDEI CIUDAD DE COLÓN\nCliente: ${completedOrder.customer_name}\nTeléfono: ${completedOrder.customer_phone}\nFecha: ${completedOrder.delivery_date}\nDestino: ${completedOrder.delivery_address}\nMétodo: ${completedOrder.payment_method}\nTotal: $${completedOrder.total.toFixed(2)}`;
+    const textToCopy = `RECIBO OFICIAL DE PEDIDO #${completedOrder.order_number}\nBALLOONSDEI CIUDAD DE COLÓN\nCliente: ${completedOrder.customer_name}\nTeléfono: ${completedOrder.customer_phone}\nFecha: ${completedOrder.delivery_date}\nDestino: ${completedOrder.delivery_address}\nMétodo: ${completedOrder.payment_method}\nTotal: $${completedOrder.total.toFixed(2)}`;
     navigator.clipboard?.writeText(textToCopy);
     setCopiedReceipt(true);
     setTimeout(() => setCopiedReceipt(false), 3000);
@@ -428,7 +428,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {completedOrder ? 'Recibo Oficial de Pedido' : 'Finalizar Pedido'}
               </h2>
               <span className="text-[10px] tracking-[0.2em] uppercase text-[#763D8B] font-semibold block">
-                BALLONSDEI · COLÓN
+                BALLOONSDEI · COLÓN
               </span>
             </div>
           </div>
@@ -449,7 +449,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {/* Official Receipt Header */}
                 <div className="text-center pb-5 border-b border-dashed border-[#EAE3DC] space-y-1.5">
                   <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-[#7D5B28] block">
-                    BALLONSDEI · CIUDAD DE COLÓN
+                    BALLOONSDEI · CIUDAD DE COLÓN
                   </span>
                   <h3 className="font-serif text-2xl sm:text-3xl font-light text-[#241A23]">
                     Comprobante de Pedido
@@ -865,7 +865,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <div className="p-3 bg-white rounded-lg border border-[#D5C2B8] text-xs space-y-1">
                       <span className="font-semibold text-[#2E2421] block">Punto de Retiro:</span>
                       <p className="text-[11px] text-[#6E5A69]">
-                        Tienda Ballonsdei · Entre calle 12 y 13, Avenida Amador Guerrero, Colón.
+                        Tienda Balloonsdei · Entre calle 12 y 13, Avenida Amador Guerrero, Colón.
                       </p>
                       <span className="text-[10px] text-emerald-700 font-medium">Sin costo adicional ($0.00)</span>
                     </div>
@@ -1080,7 +1080,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           Yappy
                         </span>
                         <span className="text-xs font-semibold text-[#2E2421]">
-                          Pagar a: Deisi Dean (Ballonsdei)
+                          Pagar a: Deisi Dean (Balloonsdei)
                         </span>
                       </div>
                       <span className="text-xs font-bold text-[#763D8B]">

@@ -53,7 +53,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 Tu Carrito ({itemCount})
               </h2>
               <span className="text-[10px] tracking-[0.2em] uppercase text-[#763D8B] font-semibold block">
-                BALLONSDEI · COLÓN
+                BALLOONSDEI · COLÓN
               </span>
             </div>
           </div>

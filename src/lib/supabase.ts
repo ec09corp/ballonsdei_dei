@@ -365,7 +365,7 @@ export async function testSupabaseConnection(url: string, key: string): Promise<
  */
 export function getSupabaseSQLScript(): string {
   return `-- ================================================================
--- BALLONSDEI - ESQUEMA COMPLETO Y DEFINITIVO DE BASE DE DATOS
+-- BALLOONSDEI - ESQUEMA COMPLETO Y DEFINITIVO DE BASE DE DATOS
 -- Copia y pega TODO este script en: Supabase > SQL Editor > New query > Run
 -- ================================================================
 
@@ -494,7 +494,7 @@ CREATE TABLE IF NOT EXISTS public.rentals (
 -- 8. Tabla de Ajustes de Tienda
 CREATE TABLE IF NOT EXISTS public.settings (
     id TEXT PRIMARY KEY DEFAULT 'current_settings',
-    store_name TEXT DEFAULT 'Ballonsdei',
+    store_name TEXT DEFAULT 'Balloonsdei',
     logo_url TEXT,
     hero_title TEXT,
     hero_subtitle TEXT,

@@ -265,7 +265,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* WhatsApp direct button like balloonspty */}
             <a
-              href={`https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(settings.store_name || 'Ballonsdei')},%20deseo%20hacer%20un%20pedido.`}
+              href={`https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(settings.store_name || 'Balloonsdei')},%20deseo%20hacer%20un%20pedido.`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn-tactile hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-medium rounded-full cursor-pointer"
@@ -319,10 +319,10 @@ export const Header: React.FC<HeaderProps> = ({
                 className="select-none cursor-pointer active:opacity-75 transition-opacity"
               >
                 <span className="font-serif text-xl tracking-[0.15em] font-medium text-stone-900 block uppercase">
-                  {settings.store_name || 'Ballonsdei'}
+                  {settings.store_name || 'Balloonsdei'}
                 </span>
                 <span className="text-[9px] tracking-[0.25em] text-[#763D8B] font-semibold uppercase">
-                  Boutique Ballonsdei · Colón
+                  Boutique Balloonsdei · Colón
                 </span>
               </div>
               <button
@@ -360,7 +360,7 @@ export const Header: React.FC<HeaderProps> = ({
               ))}
 
               <a
-                href={`https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(settings.store_name || 'Ballonsdei')},%20deseo%20hacer%20un%20pedido.`}
+                href={`https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(settings.store_name || 'Balloonsdei')},%20deseo%20hacer%20un%20pedido.`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-between px-3 py-3 text-left text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors mt-2"

@@ -14,7 +14,7 @@ export const PWAInstallBanner: React.FC = () => {
       {/* 1. DISCREET FLOATING INSTALL BAR FOR MOBILE */}
       {isInstallable && (
         <aside 
-          aria-label="Instalar aplicación Ballonsdei"
+          aria-label="Instalar aplicación Balloonsdei"
           className="fixed bottom-[calc(4.4rem+env(safe-area-inset-bottom,0px))] left-3 right-3 z-40 sm:hidden animate-fade-in"
         >
           <div className="bg-[#241A23]/95 backdrop-blur-md text-white rounded-2xl p-3 shadow-2xl border border-white/10 flex items-center justify-between gap-3">
@@ -22,12 +22,12 @@ export const PWAInstallBanner: React.FC = () => {
               <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/10 shrink-0 p-1 border border-white/20">
                 <img
                   src="/logo/logo.png"
-                  alt="Ballonsdei App"
+                  alt="Balloonsdei App"
                   className="w-full h-full object-contain"
                 />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold truncate text-white">Instalar App Ballonsdei</p>
+                <p className="text-xs font-semibold truncate text-white">Instalar App Balloonsdei</p>
                 <p className="text-[10px] text-white/70 truncate">
                   {isIOS ? 'Agrega a pantalla de inicio en iOS' : 'Acceso rápido y sin esperas'}
                 </p>
@@ -74,11 +74,11 @@ export const PWAInstallBanner: React.FC = () => {
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl overflow-hidden bg-[#FAF4F7] p-1.5 border border-[#763D8B]/20 shrink-0">
-                  <img src="/logo/logo.png" alt="Logo Ballonsdei" className="w-full h-full object-contain" />
+                  <img src="/logo/logo.png" alt="Logo Balloonsdei" className="w-full h-full object-contain" />
                 </div>
                 <div>
                   <h3 className="font-serif text-lg font-bold text-[#241A23]">
-                    Instalar Ballonsdei en iPhone
+                    Instalar Balloonsdei en iPhone
                   </h3>
                   <p className="text-xs text-stone-500">
                     Úsala como una App nativa a pantalla completa

@@ -55,7 +55,7 @@ export const Hero: React.FC<HeroProps> = ({ settings, onExplore, onOpenCustomize
         {/* Editorial Top Origin Insignia */}
         <div className="text-center pb-6 sm:pb-10">
           <div className="inline-flex items-center gap-3 text-[10px] sm:text-[11px] font-semibold tracking-[0.28em] uppercase text-[#7D5B28]">
-            <span>BALLONSDEI</span>
+            <span>BALLOONSDEI</span>
             <span className="text-[#C5A059]">✦</span>
             <span>CIUDAD DE COLÓN</span>
             <span className="text-[#C5A059]">✦</span>
@@ -167,7 +167,7 @@ export const Hero: React.FC<HeroProps> = ({ settings, onExplore, onOpenCustomize
                     settings.hero_image ||
                     'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=1800&q=80'
                   }
-                  alt={`Composiciones florales y globos en ${settings.store_name || 'Ballonsdei Boutique'}`}
+                  alt={`Composiciones florales y globos en ${settings.store_name || 'Balloonsdei Boutique'}`}
                   className="w-full h-full object-cover object-center transform transition-transform duration-700 ease-out will-change-transform"
                   style={{
                     transform: `translate3d(0, ${imageOffset}px, 0) scale(1.04)`,
@@ -182,7 +182,7 @@ export const Hero: React.FC<HeroProps> = ({ settings, onExplore, onOpenCustomize
                 <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-sm border border-[#EAE3DC] shadow-xs flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#763D8B]" />
                   <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-[#7D5B28]">
-                    BALLONSDEI · DE AUTOR
+                    BALLOONSDEI · DE AUTOR
                   </span>
                 </div>
 
@@ -220,7 +220,7 @@ export const Hero: React.FC<HeroProps> = ({ settings, onExplore, onOpenCustomize
               <div className="sm:hidden mt-3 p-3.5 bg-white/95 backdrop-blur-md rounded-xl border border-[#EAE3DC] shadow-sm flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <span className="text-[9px] text-[#763D8B] font-bold tracking-[0.2em] uppercase block">
-                    BALLONSDEI · GARANTÍA ATELIER
+                    BALLOONSDEI · GARANTÍA ATELIER
                   </span>
                   <span className="font-serif text-sm font-medium text-[#241A23] truncate block">
                     {settings.hero_badge_title || 'Bouquet Imperial & Globos con Dedicatoria'}

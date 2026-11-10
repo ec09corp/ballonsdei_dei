@@ -1,6 +1,6 @@
 /**
  * =====================================================================
- * BALLONSDEI - CONFIGURACIÓN CENTRAL DE SUPABASE
+ * BALLOONSDEI - CONFIGURACIÓN CENTRAL DE SUPABASE
  * =====================================================================
  * Este archivo se sincroniza con tu repositorio de GitHub y Vercel.
  *

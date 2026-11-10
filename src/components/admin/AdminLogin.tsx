@@ -45,12 +45,12 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
           className="inline-flex items-center gap-1.5 text-xs text-[#7A6B63] hover:text-[#2E2421] mb-6 mx-auto sm:mx-0 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Volver a la tienda BALLONSDEI</span>
+          <span>Volver a la tienda BALLOONSDEI</span>
         </button>
 
         <div className="text-center">
           <span className="font-serif text-3xl font-medium tracking-[0.2em] text-[#2E2421] block uppercase">
-            BALLONSDEI
+            BALLOONSDEI
           </span>
           <span className="text-xs uppercase tracking-widest text-[#8D5844] mt-1 block">
             Panel de Administración Exclusivo
@@ -78,7 +78,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@email.com o admin@ballonsdei.com"
+                  placeholder="tu@email.com o admin@balloonsdei.com"
                   className="w-full text-xs p-3 rounded-lg bg-[#FAF8F5] border border-[#D5C2B8] text-[#2E2421] focus:border-[#8D5844] focus:outline-none"
                 />
               </div>

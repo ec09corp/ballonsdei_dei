@@ -1,5 +1,5 @@
 /**
- * Script SQL Universal y Definitivo para Supabase (PostgreSQL) - Ballonsdei
+ * Script SQL Universal y Definitivo para Supabase (PostgreSQL) - Balloonsdei
  * - Reinicia productos, categorías, personalizaciones e inventario/arreglos desde 0 en Supabase.
  * - Elimina el error 42804 de tipos incompatibles (text vs uuid) en product_variants.
  * - Elimina el error 42501 (Permission Denied) desactivando RLS en todas las tablas y otorgando permisos públicos completos.
@@ -13,7 +13,7 @@
  * 3. Pega todo este código y haz clic en 'RUN' (Ejecutar)
  */
 export const SUPABASE_VARIANTS_SQL = `-- ==============================================================================
--- BALLONSDEI: REINICIO Y ESTRUCTURA DEFINITIVA EN SUPABASE (POSTGRESQL)
+-- BALLOONSDEI: REINICIO Y ESTRUCTURA DEFINITIVA EN SUPABASE (POSTGRESQL)
 -- Limpia y prepara: Productos, Categorías, Personalizaciones, Inventario y Arreglos
 -- ==============================================================================
 
@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS public.production_movements (
 -- 10. TABLA DE CONFIGURACIONES GENERALES
 CREATE TABLE IF NOT EXISTS public.settings (
     id TEXT PRIMARY KEY DEFAULT 'general_settings',
-    store_name TEXT DEFAULT 'Ballonsdei',
+    store_name TEXT DEFAULT 'Balloonsdei',
     whatsapp_number TEXT,
     instagram_user TEXT,
     primary_color TEXT DEFAULT '#763D8B',

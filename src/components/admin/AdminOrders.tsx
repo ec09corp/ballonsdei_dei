@@ -455,7 +455,7 @@ export const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onRefreshOrder
                 <div className="pt-2 border-t border-[#EBE2DB]">
                   <a
                     href={`https://api.whatsapp.com/send?phone=${(selectedOrder.customer_phone || '').replace(/[^0-9]/g, '')}&text=${encodeURIComponent(
-                      `Hola ${selectedOrder.customer_name}, te saludamos de BALLONSDEI con respecto a tu pedido #${selectedOrder.order_number} (${selectedOrder.delivery_type === 'delivery' ? 'entrega en Colón' : 'retiro en tienda'}). ¡Estamos preparando tu orden!`
+                      `Hola ${selectedOrder.customer_name}, te saludamos de BALLOONSDEI con respecto a tu pedido #${selectedOrder.order_number} (${selectedOrder.delivery_type === 'delivery' ? 'entrega en Colón' : 'retiro en tienda'}). ¡Estamos preparando tu orden!`
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"

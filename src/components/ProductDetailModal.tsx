@@ -162,7 +162,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         {/* Top Header Bar */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-[#EBE2DB] bg-white">
           <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-[#8A796F] font-light">
-            <span className="uppercase tracking-widest text-[#763D8B] font-bold text-[11px]">BALLONSDEI</span>
+            <span className="uppercase tracking-widest text-[#763D8B] font-bold text-[11px]">BALLOONSDEI</span>
             <span>/</span>
             <span className="hidden sm:inline">{isRental ? 'Alquiler para Eventos' : isCustomizing ? 'Personalizable' : 'Colección'}</span>
             <span className="hidden sm:inline">/</span>

@@ -38,7 +38,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   settings,
   onRefreshSettings,
 }) => {
-  const [storeName, setStoreName] = useState(settings.store_name || 'Ballonsdei');
+  const [storeName, setStoreName] = useState(settings.store_name || 'Balloonsdei');
   const [logoUrl, setLogoUrl] = useState(settings.logo_url || '/logo/logo.jpg');
   const [heroTitle, setHeroTitle] = useState(settings.hero_title || '');
   const [heroSubtitle, setHeroSubtitle] = useState(settings.hero_subtitle || '');
@@ -119,7 +119,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   const generateConfigSnippet = () => {
     return `/**
- * Configuración central de Supabase para Ballonsdei
+ * Configuración central de Supabase para Balloonsdei
  * Ubicación: src/config/supabaseConfig.ts
  */
 export const DEFAULT_SUPABASE_CONFIG = {
@@ -196,7 +196,7 @@ export const DEFAULT_SUPABASE_CONFIG = {
     <div className="space-y-6">
       <div>
         <h1 className="font-serif text-2xl sm:text-3xl font-medium text-[#2E2421]">
-          Configuración General de BALLONSDEI
+          Configuración General de BALLOONSDEI
         </h1>
         <p className="text-xs text-[#7A6B63] mt-1 font-light">
           Administra la información de marca, datos de contacto, enlaces oficiales de Instagram, WhatsApp, Google Maps y tarifa de envíos.
@@ -505,7 +505,7 @@ export const DEFAULT_SUPABASE_CONFIG = {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="contacto@ballonsdei.com"
+                placeholder="contacto@balloonsdei.com"
                 className="w-full p-2.5 rounded-lg border border-[#D5C2B8]"
               />
             </div>

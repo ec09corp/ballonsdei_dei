@@ -286,7 +286,7 @@ function MainApp() {
         Saltar al catálogo de productos
       </a>
 
-      {/* Ambient Mobile Balloons, Ballonsdei Watermarks & Bottom Action Bar */}
+      {/* Ambient Mobile Balloons, Balloonsdei Watermarks & Bottom Action Bar */}
       <MobileBallonsdeiAtmosphere
         settings={settings}
         onOpenSearch={() => setIsSearchOpen(true)}
@@ -390,7 +390,7 @@ function MainApp() {
         {isLoading ? (
           <div className="py-24 text-center text-stone-500 text-sm font-light space-y-3">
             <div className="w-8 h-8 mx-auto border-2 border-[#763D8B] border-t-transparent rounded-full animate-spin" />
-            <p>Cargando creaciones de Ballonsdei...</p>
+            <p>Cargando creaciones de Balloonsdei...</p>
           </div>
         ) : displayProducts.length === 0 ? (
           <div className="py-20 text-center max-w-md mx-auto space-y-4 bg-white rounded-3xl p-8 border border-[#EAE3DC] shadow-xs">

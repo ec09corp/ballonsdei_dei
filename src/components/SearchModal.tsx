@@ -70,7 +70,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         <div className="max-h-[60vh] overflow-y-auto p-4 space-y-2">
           {!searchTerm.trim() ? (
             <div className="py-8 text-center text-xs text-[#6E5A69] space-y-2 font-light">
-              <p>Escribe para buscar cualquier producto o servicio de BALLONSDEI.</p>
+              <p>Escribe para buscar cualquier producto o servicio de BALLOONSDEI.</p>
               <div className="flex flex-wrap justify-center gap-2 pt-2">
                 {['Rosas', 'Sombrerera', 'Peluches', 'Quinceaños', 'Alquiler', 'Cilindros'].map(
                   (tag) => (

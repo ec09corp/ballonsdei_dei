@@ -1,4 +1,4 @@
-CARPETA PARA EL LOGO DE BALLONSDEI:
+CARPETA PARA EL LOGO DE BALLOONSDEI:
 ========================================
 Puedes colocar aquí tu archivo de logo con cualquiera de estos nombres:
 - /logo/logo.png

@@ -82,7 +82,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           </button>
           <div>
             <span className="font-serif text-base tracking-wider font-medium uppercase block leading-tight">
-              {settings.store_name || 'BALLONSDEI'}
+              {settings.store_name || 'BALLOONSDEI'}
             </span>
             <span className="text-[9px] text-[#A68F83] uppercase tracking-widest">
               Panel Admin
@@ -126,7 +126,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <span className="font-serif text-xl tracking-[0.22em] text-white font-medium block uppercase">
-                  {settings.store_name || 'BALLONSDEI'}
+                  {settings.store_name || 'BALLOONSDEI'}
                 </span>
                 <span className="text-[9px] tracking-[0.3em] text-[#A68F83] uppercase block mt-0.5">
                   Panel de Gestión

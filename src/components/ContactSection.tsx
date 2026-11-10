@@ -48,7 +48,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ settings }) => {
 
             <div className="space-y-4 pt-2">
               <a
-                href={`https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(settings.store_name || 'Ballonsdei')},%20deseo%20hacer%20una%20consulta.`}
+                href={`https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(settings.store_name || 'Balloonsdei')},%20deseo%20hacer%20una%20consulta.`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-4 p-4 rounded-2xl bg-[#FAF7F9] border border-[#EADEE6] hover:border-[#763D8B] transition-[border-color,background-color] duration-150 group"

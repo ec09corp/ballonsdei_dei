@@ -1,4 +1,4 @@
-// Ballonsdei Service Worker
+// Balloonsdei Service Worker
 const CACHE_NAME = 'ballonsdei-v1';
 const PRECACHE_URLS = [
   '/',

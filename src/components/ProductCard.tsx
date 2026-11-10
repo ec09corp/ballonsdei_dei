@@ -71,10 +71,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-        {/* Ballonsdei Atelier Signature Corner Seal */}
+        {/* Balloonsdei Atelier Signature Corner Seal */}
         <div className="absolute top-2.5 right-2.5 pointer-events-none z-10">
           <span className="text-[7.5px] sm:text-[8px] font-bold tracking-[0.2em] text-[#F0DCB0] bg-[#1F0E23]/80 backdrop-blur-xs px-1.5 py-0.5 rounded-xs uppercase shadow-2xs border border-[#C5A059]/30">
-            BALLONSDEI
+            BALLOONSDEI
           </span>
         </div>
 

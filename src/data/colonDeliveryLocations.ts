@@ -85,8 +85,8 @@ export const COLON_DELIVERY_DISTRICTS: ColonDistrict[] = [
 ];
 
 export const RETIRO_EN_LOCAL = {
-  name: 'Retiro en Boutique Ballonsdei (Ciudad de Colón)',
+  name: 'Retiro en Boutique Balloonsdei (Ciudad de Colón)',
   price: 0.00,
-  address: 'Tienda Ballonsdei, entre calle 12 y 13, Avenida Amador Guerrero, Colón',
+  address: 'Tienda Balloonsdei, entre calle 12 y 13, Avenida Amador Guerrero, Colón',
   note: 'Sin costo adicional. Te avisamos por WhatsApp cuando tu pedido esté listo para retirar.',
 };

@@ -12,7 +12,7 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ settings }) =>
   const safeMapsUrl =
     settings.google_maps_url && !settings.google_maps_url.includes('3kyhrTZrj')
       ? settings.google_maps_url
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address || 'Ballonsdei Panama')}`;
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address || 'Balloonsdei Panama')}`;
 
   return (
     <section id="visitanos" className="py-14 sm:py-20 bg-[#F7F1F5] border-t border-[#EADEE6]">
@@ -78,7 +78,7 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ settings }) =>
               </a>
 
               <a
-                href={`https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(settings.store_name || 'Ballonsdei')},%20quisiera%20consultar%20sobre%20una%20visita%20o%20pedido.`}
+                href={`https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(settings.store_name || 'Balloonsdei')},%20quisiera%20consultar%20sobre%20una%20visita%20o%20pedido.`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-tactile inline-flex items-center gap-2 px-6 py-3 bg-white hover:bg-[#F3EBF0] text-[#241A23] border border-[#D5C2B8] text-xs font-semibold uppercase tracking-wider rounded-full transition-[background-color,border-color,transform] duration-150 active:scale-[0.97]"
@@ -96,7 +96,7 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ settings }) =>
                 <div className="w-14 h-14 rounded-full bg-white/90 shadow-md flex items-center justify-center text-[#763D8B] mb-3 border border-[#E2D2DC]">
                   <MapPin className="w-7 h-7" />
                 </div>
-                <h4 className="font-serif text-xl text-[#2B1D28] font-medium">Boutique {settings.store_name || 'Ballonsdei'}</h4>
+                <h4 className="font-serif text-xl text-[#2B1D28] font-medium">Boutique {settings.store_name || 'Balloonsdei'}</h4>
                 <p className="text-xs text-[#6E5A69] max-w-sm mt-1">
                   {settings.address}
                 </p>
