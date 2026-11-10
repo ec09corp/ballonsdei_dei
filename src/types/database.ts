@@ -264,6 +264,7 @@ export interface StoreSettings {
   hero_badge_image?: string;
   hero_badge_title?: string;
   instagram_url: string;
+  tiktok_url?: string;
   whatsapp_number: string;
   phone: string;
   email: string;

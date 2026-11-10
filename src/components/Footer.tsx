@@ -46,7 +46,7 @@ export const Footer: React.FC<FooterProps> = ({
       clearTimeout(longPressTimerRef.current);
     }
   };
-  const cleanPhone = (settings.whatsapp_number || '+50760000000').replace(/[^0-9]/g, '');
+  const cleanPhone = (settings.whatsapp_number || '+50764324750').replace(/[^0-9]/g, '');
 
   return (
     <footer className="bg-[#1D131C] text-[#D8CAD5] pt-16 pb-12 border-t border-[#30212E]">
@@ -85,13 +85,24 @@ export const Footer: React.FC<FooterProps> = ({
 
             <div className="flex items-center gap-3 pt-2">
               <a
-                href={settings.instagram_url || 'https://instagram.com'}
+                href={settings.instagram_url || 'https://www.instagram.com/balloonsdei'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-[#2E1E2B] hover:bg-[#763D8B] text-[#F5EEF3] flex items-center justify-center transition-colors"
                 title="Instagram"
               >
                 <Instagram className="w-4 h-4" />
+              </a>
+              <a
+                href={settings.tiktok_url || 'https://www.tiktok.com/@balloonsdei'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-8 h-8 rounded-full bg-[#2E1E2B] hover:bg-[#763D8B] text-[#F5EEF3] flex items-center justify-center transition-colors"
+                title="TikTok"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" aria-hidden="true">
+                  <path d="M16.6 5.82A4.28 4.28 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 0 1-2.59 2.5 2.59 2.59 0 0 1 0-5.18c.27 0 .53.04.77.12V9.68a5.7 5.7 0 0 0-.77-.05A5.68 5.68 0 0 0 4.18 15.3 5.68 5.68 0 0 0 9.86 21a5.68 5.68 0 0 0 5.68-5.68V9.01a7.33 7.33 0 0 0 4.28 1.37V7.3a4.3 4.3 0 0 1-3.22-1.48z" />
+                </svg>
               </a>
               <a
                 href={`https://wa.me/${cleanPhone}`}

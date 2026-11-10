@@ -122,9 +122,21 @@ export const LegalModal: React.FC<{ settings: StoreSettings }> = ({ settings }) 
 
               <Seccion titulo="3. Precios y pagos">
                 <p>
-                  Los precios están en dólares (USD). Aceptamos los métodos que aparecen al finalizar el pedido. Para
-                  Yappy o transferencia debes adjuntar la captura del pago y enviarla por WhatsApp. El pedido se
-                  confirma cuando verificamos el pago; si hay un error en el precio, te avisamos antes de prepararlo.
+                  Los precios están en dólares (USD). Aceptamos Yappy, transferencia bancaria (Banco General,
+                  Banistmo y BAC), tarjeta Visa, Mastercard o Clave, y MoneyGram o Western Union (recargo de $5.00).
+                  Si transfieres desde otro banco distinto, la transferencia debe ser express. Para Yappy o
+                  transferencia debes adjuntar la captura del pago. El pedido se confirma cuando verificamos el pago;
+                  si hay un error en el precio, te avisamos antes de prepararlo.
+                </p>
+                <p>
+                  <strong>No realizamos ningún trabajo sin abono.</strong> Puedes abonar y cancelar el resto hasta 1 día
+                  antes de la entrega. Si tu pedido es para ya, debes pagarlo completo. El costo del delivery es
+                  adicional al pago de los productos. <strong>Si abonas y desistes, no hay devoluciones.</strong>
+                </p>
+                <p>
+                  Por seguridad no recibimos pagos en efectivo en el lugar de la entrega: todos los pagos se hacen por
+                  transferencia, Yappy o ACH. El efectivo solo se recibe en la tienda física (Colón, entre calle 12 y 13,
+                  Avenida Amador Guerrero). No nos hacemos responsables por billetes rotos.
                 </p>
               </Seccion>
 

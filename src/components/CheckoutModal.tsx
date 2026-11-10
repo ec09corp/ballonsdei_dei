@@ -40,6 +40,14 @@ import { COLON_DISTRICTS, OrderExtraItem } from '../data/colonDelivery';
 import { subirComprobante, pedirEnlaceComprobante } from '../lib/comprobantes';
 import { extrasService } from '../services/extrasService';
 
+const DIRECCION_TIENDA = 'Colón, entre calle 12 y 13, Avenida Amador Guerrero';
+
+const CUENTAS_BANCARIAS = [
+  { banco: 'Banco General', titular: 'Delvert Mendoza', numero: '0472400074100' },
+  { banco: 'Banistmo', titular: 'Deisi Dean', numero: '120626289' },
+  { banco: 'BAC', titular: 'Deisi Dean', numero: '116472028' },
+];
+
 interface CheckoutModalProps {
   isOpen: boolean;
   settings: StoreSettings;
@@ -93,6 +101,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Payment methods: Yappy, Transferencia Bancaria, Tarjeta
   const [paymentMethod, setPaymentMethod] = useState<'Yappy' | 'Transferencia' | 'Tarjeta'>('Yappy');
+  const [tipoPago, setTipoPago] = useState<'total' | 'abono'>('total');
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [enlaceComprobante, setEnlaceComprobante] = useState<string | null>(null);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
@@ -235,7 +244,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     try {
       const finalAddress = deliveryType === 'delivery'
         ? `Provincia de Colón, ${currentDistrict.name}, Corregimiento ${corregimientoName}. Dirección: ${addressDetails.trim()}`
-        : `Retiro en Local Ballonsdei (Colón Centro - Calle 11 y Central)`;
+        : `Retiro en tienda Ballonsdei (Colón, entre calle 12 y 13, Avenida Amador Guerrero)`;
 
       let fullNotes = notes.trim();
       if (arrangementChanges.trim()) {
@@ -271,7 +280,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           delivery_address: finalAddress,
           delivery_date: deliveryDate,
           delivery_type: deliveryType,
-          payment_method: paymentMethod === 'Transferencia' ? 'Transferencia Bancaria (Banco General)' : paymentMethod,
+          payment_method: `${paymentMethod === 'Transferencia' ? 'Transferencia Bancaria' : paymentMethod === 'Tarjeta' ? 'Tarjeta (Visa / Mastercard / Clave)' : 'Yappy'} · ${tipoPago === 'abono' ? 'ABONO (falta saldo)' : 'Pago completo'}`,
           notes: fullNotes,
           receipt_url: receiptImage,
           receipt_ref: receiptRef.trim() || null,
@@ -361,7 +370,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       `*Cliente:* ${order.customer_name}\n` +
       `*Teléfono:* ${order.customer_phone}\n` +
       `*Fecha de Entrega/Retiro:* ${order.delivery_date}\n` +
-      `*Modalidad:* ${order.delivery_type === 'delivery' ? 'Envío a domicilio en Provincia de Colón' : 'Retiro en Local Ballonsdei (Colón Centro)'}\n` +
+      `*Modalidad:* ${order.delivery_type === 'delivery' ? 'Envío a domicilio en Provincia de Colón' : 'Retiro en tienda Ballonsdei (Colón)'}\n` +
       `*Destino:* ${order.delivery_address}\n` +
       `*Método de Pago:* ${order.payment_method}\n` +
       receiptSummary +
@@ -853,7 +862,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <div className="p-3 bg-white rounded-lg border border-[#D5C2B8] text-xs space-y-1">
                       <span className="font-semibold text-[#2E2421] block">Punto de Retiro:</span>
                       <p className="text-[11px] text-[#6E5A69]">
-                        Boutique Ballonsdei · Calle 11 y Ave. Central, Ciudad de Colón.
+                        Tienda Ballonsdei · Entre calle 12 y 13, Avenida Amador Guerrero, Colón.
                       </p>
                       <span className="text-[10px] text-emerald-700 font-medium">Sin costo adicional ($0.00)</span>
                     </div>
@@ -988,7 +997,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               {/* 4. Payment Method with Yappy, Transferencia Bancaria, and Tarjeta */}
               <div className="space-y-4 pt-2 border-t border-[#EBE2DB]">
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-[#6B5A52]">
-                  4. Método de Pago (Yappy, Transferencia Bancaria o Tarjeta)
+                  4. Método de Pago (Yappy, Transferencia o Tarjeta)
                 </h4>
                 <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
                   <button
@@ -1027,9 +1036,35 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     }`}
                   >
                     <CreditCard className="w-3.5 h-3.5 shrink-0" />
-                    <span>Tarjeta</span>
+                    <span>Tarjeta / Clave</span>
                   </button>
                 </div>
+
+                {/* TOTAL O ABONO + REGLAS DE PAGO */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTipoPago('total')}
+                    className={`p-2.5 rounded-xl border text-[11px] sm:text-xs font-semibold cursor-pointer transition-all ${tipoPago === 'total' ? 'border-[#763D8B] bg-[#F3E8F6] text-[#58256B]' : 'border-[#D5C2B8] bg-white text-[#423530] hover:bg-[#F2ECE6]'}`}
+                  >
+                    Pago completo (${grandTotal.toFixed(2)})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTipoPago('abono')}
+                    className={`p-2.5 rounded-xl border text-[11px] sm:text-xs font-semibold cursor-pointer transition-all ${tipoPago === 'abono' ? 'border-[#763D8B] bg-[#F3E8F6] text-[#58256B]' : 'border-[#D5C2B8] bg-white text-[#423530] hover:bg-[#F2ECE6]'}`}
+                  >
+                    Solo un abono
+                  </button>
+                </div>
+                <ul className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-[11px] text-[#5C4A2E] space-y-1 list-disc pl-6">
+                  <li><strong>No realizamos ningún trabajo sin abono.</strong></li>
+                  <li>Puedes abonar y cancelar el resto <strong>hasta 1 día antes de la entrega</strong>.</li>
+                  <li>Si tu pedido es <strong>para ya</strong>, debes pagarlo completo.</li>
+                  <li>No recibimos efectivo en el lugar de la entrega. Efectivo <strong>solo en la tienda</strong> ({DIRECCION_TIENDA}).</li>
+                  <li>El costo del delivery es adicional al pago de los productos.</li>
+                  <li><strong>Si abonas y desistes, no hay devoluciones.</strong></li>
+                </ul>
 
                 {/* YAPPY PAYMENT BOX */}
                 {paymentMethod === 'Yappy' && (
@@ -1040,7 +1075,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           Yappy
                         </span>
                         <span className="text-xs font-semibold text-[#2E2421]">
-                          Pagar a: {settings.store_name || 'Ballonsdei'}
+                          Pagar a: Deisi Dean (Ballonsdei)
                         </span>
                       </div>
                       <span className="text-xs font-bold text-[#763D8B]">
@@ -1050,10 +1085,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                     <div className="text-xs text-[#52404E] space-y-1">
                       <p>
-                        <strong>1.</strong> Envía <strong>${grandTotal.toFixed(2)}</strong> por Yappy al número:{' '}
+                        <strong>1.</strong> Envía {tipoPago === 'abono' ? <strong>tu abono</strong> : <strong>${grandTotal.toFixed(2)}</strong>} por Yappy al número:{' '}
                         <strong className="text-[#2E2421] bg-white px-2 py-0.5 rounded border border-[#E0D3DB]">
-                          {settings.whatsapp_number || settings.phone || '+507 6432-4750'}
-                        </strong>
+                          6432-4750
+                        </strong>{' '}
+                        (a nombre de <strong>Deisi Dean</strong>)
                       </p>
                       <p>
                         <strong>2.</strong> <span className="text-rose-700 font-bold">Obligatorio:</span> Toma una captura del comprobante y súbela aquí abajo para continuar:
@@ -1113,6 +1149,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </div>
                 )}
 
+                {/* TARJETA / CLAVE */}
+                {paymentMethod === 'Tarjeta' && (
+                  <div className="p-4 bg-gradient-to-br from-[#F7F6FA] to-[#EFEDF5] rounded-xl border border-[#D9D4E6] space-y-2 animate-fade-in text-xs text-[#3B3550]">
+                    <div className="flex items-center gap-2 pb-2 border-b border-[#E2DDEE]">
+                      <span className="px-2 py-0.5 bg-[#3B3550] text-white text-[11px] font-bold rounded-sm uppercase tracking-wide">Tarjeta</span>
+                      <span className="font-semibold">Visa, Mastercard o Clave</span>
+                    </div>
+                    <p>Envía tu pedido y te escribimos por WhatsApp para hacer el cobro con tarjeta. También puedes pagar con tarjeta en la tienda ({DIRECCION_TIENDA}).</p>
+                    <p>Tu pedido se empieza a preparar cuando recibimos el pago o el abono.</p>
+                  </div>
+                )}
+
                 {/* TRANSFERENCIA BANCARIA PAYMENT BOX */}
                 {paymentMethod === 'Transferencia' && (
                   <div className="p-4 bg-gradient-to-br from-[#F5F8FA] to-[#EBF2F5] rounded-xl border border-[#CDE0E8] space-y-3 animate-fade-in">
@@ -1122,7 +1170,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           Transferencia ACH
                         </span>
                         <span className="text-xs font-semibold text-[#2E2421]">
-                          Banco General
+                          3 bancos disponibles
                         </span>
                       </div>
                       <span className="text-xs font-bold text-[#1B5E7C]">
@@ -1130,34 +1178,37 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       </span>
                     </div>
 
-                    {/* Bank Coordinates */}
-                    <div className="text-xs text-[#2A4854] space-y-1.5 bg-white p-3 rounded-lg border border-[#BED6E0]">
-                      <div className="flex justify-between">
-                        <span className="text-[#648492]">Banco:</span>
-                        <strong className="text-[#1A3744]">Banco General (Panamá)</strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[#648492]">Tipo de Cuenta:</span>
-                        <strong className="text-[#1A3744]">Cuenta de Ahorros</strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[#648492]">Titular:</span>
-                        <strong className="text-[#1A3744]">Ballonsdei</strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[#648492]">N° de Cuenta:</span>
-                        <strong className="text-[#1B5E7C] font-mono bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
-                          04-72-99-847291-3
-                        </strong>
-                      </div>
-                      <div className="flex justify-between pt-1 border-t border-[#E8EFF2]">
-                        <span className="text-[#648492]">Monto exacto:</span>
-                        <strong className="text-emerald-700 text-sm">${grandTotal.toFixed(2)}</strong>
+                    {/* Cuentas bancarias */}
+                    <div className="space-y-2">
+                      {CUENTAS_BANCARIAS.map((c) => (
+                        <div key={c.numero} className="text-xs text-[#2A4854] bg-white p-3 rounded-lg border border-[#BED6E0] space-y-1">
+                          <div className="flex justify-between gap-2">
+                            <strong className="text-[#1A3744]">{c.banco}</strong>
+                            <span className="text-[#648492]">Cuenta de ahorros</span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-[#648492]">Titular:</span>
+                            <strong className="text-[#1A3744]">{c.titular}</strong>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-[#648492]">N° de cuenta:</span>
+                            <strong className="text-[#1B5E7C] font-mono bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 select-all">
+                              {c.numero}
+                            </strong>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="text-[11px] text-[#2A4854] bg-white/70 p-2.5 rounded-lg border border-[#BED6E0] space-y-1">
+                        <p>Si transfieres desde <strong>otro banco distinto</strong>, la transferencia debe ser <strong>express</strong>.</p>
+                        <p>También recibimos <strong>MoneyGram o Western Union</strong> (recargo de $5.00).</p>
+                        <p className="pt-1 border-t border-[#E8EFF2]">
+                          Monto: <strong className="text-emerald-700">{tipoPago === 'abono' ? `tu abono (total del pedido $${grandTotal.toFixed(2)})` : `$${grandTotal.toFixed(2)}`}</strong>
+                        </p>
                       </div>
                     </div>
 
                     <p className="text-xs text-[#2A4854]">
-                      <span className="text-rose-700 font-bold">Obligatorio:</span> Transfiere el total y sube la captura de pantalla de la transferencia ACH para continuar:
+                      <span className="text-rose-700 font-bold">Obligatorio:</span> Transfiere {tipoPago === 'abono' ? 'tu abono' : 'el total'} y sube la captura de pantalla de la transferencia para continuar:
                     </p>
 
                     <div className="space-y-2 pt-1">

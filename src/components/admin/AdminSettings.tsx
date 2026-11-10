@@ -57,6 +57,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [footerCaption4, setFooterCaption4] = useState(settings.footer_caption_4 || '');
 
   const [instagramUrl, setInstagramUrl] = useState(settings.instagram_url || '');
+  const [tiktokUrl, setTiktokUrl] = useState(settings.tiktok_url || '');
   const [whatsappNumber, setWhatsappNumber] = useState(settings.whatsapp_number || '');
   const [phone, setPhone] = useState(settings.phone || '');
   const [email, setEmail] = useState(settings.email || '');
@@ -170,6 +171,7 @@ export const DEFAULT_SUPABASE_CONFIG = {
         footer_caption_3: footerCaption3,
         footer_caption_4: footerCaption4,
         instagram_url: instagramUrl,
+        tiktok_url: tiktokUrl,
         whatsapp_number: whatsappNumber,
         phone,
         email,
@@ -477,7 +479,20 @@ export const DEFAULT_SUPABASE_CONFIG = {
                 type="url"
                 value={instagramUrl}
                 onChange={(e) => setInstagramUrl(e.target.value)}
-                placeholder="https://instagram.com/ballonsdei_placeholder"
+                placeholder="https://www.instagram.com/balloonsdei"
+                className="w-full p-2.5 rounded-lg border border-[#D5C2B8]"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-[#423530] block mb-1">
+                Enlace Oficial de TikTok
+              </label>
+              <input
+                type="url"
+                value={tiktokUrl}
+                onChange={(e) => setTiktokUrl(e.target.value)}
+                placeholder="https://www.tiktok.com/@balloonsdei"
                 className="w-full p-2.5 rounded-lg border border-[#D5C2B8]"
               />
             </div>

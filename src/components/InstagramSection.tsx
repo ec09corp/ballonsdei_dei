@@ -44,13 +44,13 @@ export const InstagramSection: React.FC<InstagramSectionProps> = ({ settings }) 
           </div>
 
           <a
-            href={settings.instagram_url || 'https://instagram.com/ballonsdei_placeholder'}
+            href={settings.instagram_url || 'https://www.instagram.com/balloonsdei'}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-tactile inline-flex items-center gap-2 px-6 py-3 bg-[#FAF8F5] hover:bg-[#FAF4F7] text-[#241A23] border border-[#D5C2B8] hover:border-[#763D8B]/40 rounded-full text-xs font-semibold tracking-wider uppercase transition-colors active:scale-[0.97]"
           >
             <Instagram className="w-4 h-4 text-[#763D8B]" />
-            <span>@ballonsdei</span>
+            <span>@balloonsdei</span>
             <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
           </a>
         </div>
@@ -60,7 +60,7 @@ export const InstagramSection: React.FC<InstagramSectionProps> = ({ settings }) 
           {posts.map((post, idx) => (
             <a
               key={idx}
-              href={settings.instagram_url || 'https://instagram.com/ballonsdei_placeholder'}
+              href={settings.instagram_url || 'https://www.instagram.com/balloonsdei'}
               target="_blank"
               rel="noopener noreferrer"
               className="group relative aspect-square rounded-xl overflow-hidden bg-[#ECE4DE] block shadow-xs"
