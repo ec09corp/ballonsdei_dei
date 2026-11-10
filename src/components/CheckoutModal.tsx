@@ -40,6 +40,9 @@ import { COLON_DISTRICTS, OrderExtraItem } from '../data/colonDelivery';
 import { subirComprobante, pedirEnlaceComprobante } from '../lib/comprobantes';
 import { extrasService } from '../services/extrasService';
 
+// Pago con tarjeta (PagueloFacil) oculto hasta que la dueña tenga la cuenta lista.
+const PAGO_TARJETA_ACTIVO = false;
+
 const DIRECCION_TIENDA = 'Colón, entre calle 12 y 13, Avenida Amador Guerrero';
 
 const CUENTAS_BANCARIAS = [
@@ -997,9 +1000,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               {/* 4. Payment Method with Yappy, Transferencia Bancaria, and Tarjeta */}
               <div className="space-y-4 pt-2 border-t border-[#EBE2DB]">
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-[#6B5A52]">
-                  4. Método de Pago (Yappy, Transferencia o Tarjeta)
+                  4. Método de Pago (Yappy o Transferencia{PAGO_TARJETA_ACTIVO ? ' o Tarjeta' : ''})
                 </h4>
-                <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                <div className={`grid ${PAGO_TARJETA_ACTIVO ? 'grid-cols-3' : 'grid-cols-2'} gap-2 sm:gap-2.5`}>
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('Yappy')}
@@ -1026,6 +1029,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <span className="truncate">ACH Banco</span>
                   </button>
 
+                  {PAGO_TARJETA_ACTIVO && (
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('Tarjeta')}
@@ -1038,6 +1042,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <CreditCard className="w-3.5 h-3.5 shrink-0" />
                     <span>Tarjeta / Clave</span>
                   </button>
+                  )}
                 </div>
 
                 {/* TOTAL O ABONO + REGLAS DE PAGO */}
@@ -1150,7 +1155,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 )}
 
                 {/* TARJETA / CLAVE */}
-                {paymentMethod === 'Tarjeta' && (
+                {PAGO_TARJETA_ACTIVO && paymentMethod === 'Tarjeta' && (
                   <div className="p-4 bg-gradient-to-br from-[#F7F6FA] to-[#EFEDF5] rounded-xl border border-[#D9D4E6] space-y-2 animate-fade-in text-xs text-[#3B3550]">
                     <div className="flex items-center gap-2 pb-2 border-b border-[#E2DDEE]">
                       <span className="px-2 py-0.5 bg-[#3B3550] text-white text-[11px] font-bold rounded-sm uppercase tracking-wide">Tarjeta</span>

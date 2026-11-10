@@ -123,7 +123,7 @@ export const LegalModal: React.FC<{ settings: StoreSettings }> = ({ settings }) 
               <Seccion titulo="3. Precios y pagos">
                 <p>
                   Los precios están en dólares (USD). Aceptamos Yappy, transferencia bancaria (Banco General,
-                  Banistmo y BAC), tarjeta Visa, Mastercard o Clave, y MoneyGram o Western Union (recargo de $5.00).
+                  Banistmo y BAC), y MoneyGram o Western Union (recargo de $5.00).
                   Si transfieres desde otro banco distinto, la transferencia debe ser express. Para Yappy o
                   transferencia debes adjuntar la captura del pago. El pedido se confirma cuando verificamos el pago;
                   si hay un error en el precio, te avisamos antes de prepararlo.
