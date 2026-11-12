@@ -285,7 +285,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Search className="w-5 h-5" />
             </button>
 
-            {/* Shopping Cart Button with boutique ShoppingCart icon */}
+            {/* Shopping Cart Button */}
             <button
               onClick={openCart}
               className="btn-icon-tactile relative p-2 text-stone-700 hover:text-[#763D8B] hover:bg-stone-100 rounded-full cursor-pointer"
@@ -322,7 +322,7 @@ export const Header: React.FC<HeaderProps> = ({
                   {settings.store_name || 'Balloonsdei'}
                 </span>
                 <span className="text-[9px] tracking-[0.25em] text-[#763D8B] font-semibold uppercase">
-                  Boutique Balloonsdei · Colón
+                  Balloonsdei · Colón
                 </span>
               </div>
               <button

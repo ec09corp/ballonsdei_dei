@@ -51,7 +51,7 @@ export const MobileBallonsdeiAtmosphere: React.FC<MobileBallonsdeiAtmosphereProp
             <div className="absolute top-3 right-3 w-5 h-8 rounded-full bg-white/50 blur-[1px]" />
             <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-2.5 h-2 bg-[#C5A059] rounded-sm" />
             <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[7px] font-semibold tracking-widest text-[#7D5B28] uppercase rotate-90">
-              BOUTIQUE
+              BALLOONSDEI
             </div>
           </div>
         </div>

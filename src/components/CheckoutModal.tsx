@@ -368,7 +368,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
 
     const msg = `🧾 *RECIBO OFICIAL DE PEDIDO #${order.order_number}*\n` +
-      `*BALLOONSDEI — BOUTIQUE FLORAL (COLÓN)*\n` +
+      `*BALLOONSDEI — COLÓN*\n` +
       `-------------------------------------------\n` +
       `*Cliente:* ${order.customer_name}\n` +
       `*Teléfono:* ${order.customer_phone}\n` +
@@ -443,7 +443,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         {/* Content */}
         <div className="overflow-y-auto p-4 sm:p-8 space-y-5 sm:space-y-6 flex-1">
           {completedOrder ? (
-            /* DETAILED BOUTIQUE ORDER RECEIPT VIEW */
+            /* DETAILED ORDER RECEIPT VIEW */
             <div className="space-y-6 animate-fade-in">
               <div ref={receiptPrintRef} className="bg-white rounded-2xl border-2 border-[#D4AF37]/35 p-6 sm:p-8 shadow-md space-y-6">
                 {/* Official Receipt Header */}
@@ -835,7 +835,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
                       <Zap className="w-4 h-4 text-amber-600 fill-amber-600 shrink-0" />
-                      <span>⚡ Pedido Para Ya (Hecho en boutique)</span>
+                      <span>⚡ Pedido Para Ya (Hecho en la tienda)</span>
                     </div>
                     <p className="text-[11px] text-[#423530] font-light leading-relaxed">
                       Tus creaciones ya están hechas tal cual como en la foto. <strong>¡Puedes recibirlas hoy mismo en Colón</strong> o seleccionar la fecha de tu preferencia!

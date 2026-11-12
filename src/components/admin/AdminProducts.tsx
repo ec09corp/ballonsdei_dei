@@ -985,7 +985,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                           Tal cual como está en la foto (No se modifica).
                         </p>
                         <p className="text-[10px] text-stone-600 font-light mt-1">
-                          • Ya elaborado en boutique.<br/>
+                          • Ya elaborado en la tienda.<br/>
                           • Disponible para entrega hoy mismo en Colón o retiro en tienda.<br/>
                           • No permite cambiar composición ni colores.
                         </p>

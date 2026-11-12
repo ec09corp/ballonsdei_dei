@@ -61,6 +61,12 @@ export const settingsService = {
         const guardada = data?.metadata?.store_settings;
         if (!error && guardada && typeof guardada === 'object') {
           const merged = { ...INITIAL_SETTINGS, ...guardada } as StoreSettings;
+          // Datos que pidió la dueña (11 nov): si la dirección está vacía o el horario es el
+          // viejo, se usan los nuevos hasta que se guarden desde Configuración.
+          if (!String(merged.address || '').trim()) merged.address = INITIAL_SETTINGS.address;
+          if (String(merged.schedule_hours || '').startsWith('Lunes a Sábado: 8:30 AM – 6:30 PM')) {
+            merged.schedule_hours = INITIAL_SETTINGS.schedule_hours;
+          }
           saveLocalSettings(merged);
           return merged;
         }

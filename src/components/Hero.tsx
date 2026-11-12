@@ -167,7 +167,7 @@ export const Hero: React.FC<HeroProps> = ({ settings, onExplore, onOpenCustomize
                     settings.hero_image ||
                     'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=1800&q=80'
                   }
-                  alt={`Composiciones florales y globos en ${settings.store_name || 'Balloonsdei Boutique'}`}
+                  alt={`Composiciones florales y globos en ${settings.store_name || 'Balloonsdei'}`}
                   className="w-full h-full object-cover object-center transform transition-transform duration-700 ease-out will-change-transform"
                   style={{
                     transform: `translate3d(0, ${imageOffset}px, 0) scale(1.04)`,

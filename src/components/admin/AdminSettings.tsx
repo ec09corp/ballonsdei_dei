@@ -521,7 +521,7 @@ export const DEFAULT_SUPABASE_CONFIG = {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="text-xs font-medium text-[#423530] block mb-1">
-                Dirección Física de la Boutique
+                Dirección de la tienda
               </label>
               <input
                 type="text"
@@ -553,7 +553,7 @@ export const DEFAULT_SUPABASE_CONFIG = {
                 type="text"
                 value={scheduleHours}
                 onChange={(e) => setScheduleHours(e.target.value)}
-                placeholder="Lunes a Sábado: 8:30 AM – 6:30 PM"
+                placeholder="Lunes a Viernes: 8:30 AM – 4:30 PM | Sábados: 9:00 AM – 3:00 PM | Domingos: cerrado"
                 className="w-full p-2.5 rounded-lg border border-[#D5C2B8]"
               />
             </div>

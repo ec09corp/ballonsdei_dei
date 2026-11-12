@@ -643,7 +643,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         <span>Regalo Hecho Ya · Entrega Inmediata</span>
                       </div>
                       <p className="text-[11px] text-[#423530] font-light leading-relaxed">
-                        Este arreglo se encuentra terminado en boutique y se entrega <strong>tal cual como está en la foto</strong> (sin modificaciones).
+                        Este arreglo se encuentra terminado en la tienda y se entrega <strong>tal cual como está en la foto</strong> (sin modificaciones).
                         ¡Disponible para entrega hoy mismo en Colón o retiro en tienda!
                       </p>
                     </div>

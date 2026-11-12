@@ -378,7 +378,7 @@ export const AdminOrders: React.FC<AdminOrdersProps> = ({ orders, onRefreshOrder
                   <div>
                     <span className="text-[#8A796F] block">Modalidad:</span>
                     <span className="font-semibold text-[#2E2421] uppercase">
-                      {selectedOrder.delivery_type === 'delivery' ? 'A Domicilio' : 'Retiro en Boutique'}
+                      {selectedOrder.delivery_type === 'delivery' ? 'A Domicilio' : 'Retiro en la tienda'}
                     </span>
                   </div>
                 </div>

@@ -161,7 +161,7 @@ export const Footer: React.FC<FooterProps> = ({
           {/* Business Hours */}
           <div className="lg:col-span-3 space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-widest text-[#F2E8F0]">
-              Boutique & Horario
+              Horario de Atención
             </h4>
             <div className="space-y-2 text-xs font-light text-[#B5A1AF]">
               <p className="flex items-start gap-2">
@@ -190,7 +190,7 @@ export const Footer: React.FC<FooterProps> = ({
                   onClick={() => onNavigate('visitanos')}
                   className="hover:text-[#F5EEF3] transition-colors"
                 >
-                  Ubicación & Boutique
+                  Ubicación
                 </button>
               </li>
               <li>

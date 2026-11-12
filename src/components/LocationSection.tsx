@@ -22,7 +22,7 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ settings }) =>
           <div className="lg:col-span-5 space-y-6">
             <div>
               <span className="text-xs font-semibold tracking-[0.25em] text-[#763D8B] uppercase block mb-1">
-                Atelier & Boutique
+                Nuestra tienda
               </span>
               <h2 className="font-serif text-3xl sm:text-4xl text-[#2B1D28] font-normal tracking-tight">
                 Visítanos
@@ -96,7 +96,7 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ settings }) =>
                 <div className="w-14 h-14 rounded-full bg-white/90 shadow-md flex items-center justify-center text-[#763D8B] mb-3 border border-[#E2D2DC]">
                   <MapPin className="w-7 h-7" />
                 </div>
-                <h4 className="font-serif text-xl text-[#2B1D28] font-medium">Boutique {settings.store_name || 'Balloonsdei'}</h4>
+                <h4 className="font-serif text-xl text-[#2B1D28] font-medium">Tienda {settings.store_name || 'Balloonsdei'}</h4>
                 <p className="text-xs text-[#6E5A69] max-w-sm mt-1">
                   {settings.address}
                 </p>
